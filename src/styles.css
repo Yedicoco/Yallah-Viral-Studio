@@ -866,6 +866,85 @@ textarea:focus {
   100% { opacity: 0; transform: translateY(16px); }
 }
 
+/* Coordonnées officielles Yallah Services */
+.field-hint {
+  display: block;
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.contact-card {
+  border-color: rgba(32, 201, 151, 0.32);
+}
+
+.contact-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.contact-link,
+.contact-actions .copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 11px 16px;
+  font-weight: 900;
+  color: #06120e;
+  background: linear-gradient(135deg, var(--primary), #8ce99a);
+  box-shadow: 0 12px 26px rgba(32, 201, 151, 0.2);
+  transition: transform 0.2s ease;
+}
+
+.contact-link:hover,
+.contact-actions .copy-btn:hover {
+  transform: translateY(-1px);
+}
+
+.site-footer {
+  display: grid;
+  gap: 8px;
+  margin-top: 26px;
+  padding: 22px 24px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+
+.footer-contacts {
+  margin: 0;
+  font-size: 1.02rem;
+  font-weight: 800;
+}
+
+.footer-contacts strong {
+  color: var(--hot);
+}
+
+.footer-contacts a {
+  color: var(--primary);
+  border-bottom: 2px solid rgba(32, 201, 151, 0.4);
+  padding-bottom: 1px;
+}
+
+.footer-contacts a:hover {
+  color: var(--hot);
+  border-bottom-color: var(--hot);
+}
+
+.footer-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
 [dir='rtl'] {
   text-align: right;
 }

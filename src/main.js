@@ -20,6 +20,13 @@ const clearLibraryBtn = document.querySelector('#clear-library-btn');
 const libraryList = document.querySelector('#library-list');
 
 const STORAGE_KEY = 'yallah-viral-studio-library';
+
+// Coordonnées officielles Yallah Services (secours pour les projets sauvegardés avant l'ajout du champ email).
+const YALLAH_CONTACT = {
+  gsm: '+212 691733585',
+  email: 'servicesyallah@gmail.com'
+};
+
 const gradients = [
   'linear-gradient(160deg, rgba(32, 201, 151, .98), rgba(7, 10, 18, .9) 56%, rgba(255, 190, 11, .9))',
   'linear-gradient(160deg, rgba(255, 77, 79, .98), rgba(12, 17, 31, .92) 58%, rgba(255, 190, 11, .88))',
@@ -49,6 +56,7 @@ function collectFormInput() {
     objective: data.get('objective'),
     city: data.get('city'),
     whatsapp: data.get('whatsapp'),
+    email: data.get('email'),
     service: data.get('service'),
     duration: Number(data.get('duration')),
     style: data.get('style'),
@@ -106,6 +114,12 @@ async function viralizeProject() {
 
 function renderProject(project, options = {}) {
   currentProject = project;
+  if (!currentProject.contact) {
+    currentProject.contact = {
+      gsm: currentProject.input?.whatsapp || YALLAH_CONTACT.gsm,
+      email: currentProject.input?.email || YALLAH_CONTACT.email
+    };
+  }
   currentSceneIndex = 0;
   projectTitle.textContent = project.title;
   scorePill.textContent = `${project.optimization.score}/100`;
@@ -258,6 +272,35 @@ function renderSubtitles() {
   `;
 }
 
+function projectContact() {
+  return {
+    gsm: currentProject?.contact?.gsm || YALLAH_CONTACT.gsm,
+    email: currentProject?.contact?.email || YALLAH_CONTACT.email
+  };
+}
+
+function renderContactCard() {
+  const contact = projectContact();
+  const whatsappDigits = contact.gsm.replace(/[^0-9]/g, '');
+
+  return `
+    <article class="caption-card contact-card">
+      <header>
+        <div>
+          <h3>☎️ Coordonnées officielles Yallah Services</h3>
+          <p>GSM/WhatsApp et email injectés dans le CTA, la caption et l'écran final.</p>
+        </div>
+      </header>
+      <div class="contact-actions">
+        <a class="contact-link" href="https://wa.me/${encodeURIComponent(whatsappDigits)}" target="_blank" rel="noreferrer">📲 ${escapeHtml(contact.gsm)}</a>
+        <a class="contact-link" href="mailto:${encodeURIComponent(contact.email)}">✉️ ${escapeHtml(contact.email)}</a>
+        <button type="button" class="copy-btn" data-copy="${escapeHtml(contact.gsm)}">Copier GSM</button>
+        <button type="button" class="copy-btn" data-copy="${escapeHtml(contact.email)}">Copier email</button>
+      </div>
+    </article>
+  `;
+}
+
 function renderCaption() {
   return `
     <article class="caption-card" dir="${currentProject.voice.direction}">
@@ -271,6 +314,7 @@ function renderCaption() {
       <p>${escapeHtml(currentProject.caption).replaceAll('\n', '<br />')}</p>
       <div class="voice-box"><strong>CTA :</strong> ${escapeHtml(currentProject.cta)}</div>
     </article>
+    ${renderContactCard()}
     <article class="caption-card">
       <header>
         <div>

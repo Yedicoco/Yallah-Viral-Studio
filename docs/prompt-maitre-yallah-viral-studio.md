@@ -20,10 +20,24 @@ L'application génère automatiquement :
 - un storyboard scène par scène,
 - des textes écran,
 - des sous-titres dynamiques,
-- un CTA WhatsApp,
+- un CTA WhatsApp + email,
 - une caption,
 - des hashtags adaptés,
 - une vidéo exportable en 9:16.
+
+## Coordonnées officielles Yallah Services (à utiliser partout)
+
+- **GSM / WhatsApp :** `+212 691733585`
+- **Email :** `servicesyallah@gmail.com`
+
+Ces coordonnées doivent apparaître systématiquement dans :
+
+- le formulaire de brief (valeurs par défaut des champs GSM/WhatsApp et email),
+- le CTA généré (voix off, écran final, caption),
+- la caption générée,
+- le README, la documentation et l'API.
+
+Elles sont centralisées dans une seule constante (`YALLAH_CONTACT`) côté générateur : ne jamais les dupliquer en dur ailleurs.
 
 L'application doit rester responsable : elle ne promet jamais qu'une vidéo deviendra virale. Elle indique qu'elle optimise les facteurs qui augmentent les chances de performance : hook, rétention, rythme, clarté, lisibilité, engagement et CTA.
 
@@ -57,7 +71,8 @@ L'application doit rester responsable : elle ne promet jamais qu'une vidéo devi
 - Style : Viral, Luxe, Commercial, Émotion, Urgent, Storytelling.
 - Langue : Français, Darija marocaine, Arabe.
 - Ville.
-- Numéro WhatsApp.
+- Numéro GSM/WhatsApp (`+212 691733585`).
+- Email de contact (`servicesyallah@gmail.com`).
 - Audience cible.
 - Niveau d'énergie.
 - Option : utiliser images/vidéos uploadées par l'utilisateur.
@@ -176,7 +191,7 @@ Prévoir :
 - Format 9:16 respecté.
 - Hook visible dans les 2 premières secondes.
 - Textes lisibles sur mobile.
-- CTA WhatsApp présent à la fin et dans la caption.
+- CTA WhatsApp et email présents à la fin, dans la caption et dans les exports.
 - Sous-titres synchronisés.
 - Export MP4 fonctionnel.
 - Interface utilisable sur mobile.
