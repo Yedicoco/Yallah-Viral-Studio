@@ -23,7 +23,7 @@ Studio de création de contenus courts, commerciaux et accrocheurs pour **Yallah
 
 Ces coordonnées et pages sont les valeurs par défaut du formulaire, du CTA généré, de la caption générée et de l'API (constante `YALLAH_CONTACT` dans `lib/generator.mjs` : source de vérité unique).
 
-## Fonctionnalités V1
+## Fonctionnalités V2.2
 
 - Créateur de script : hooks, scénario, voix off et CTA WhatsApp + email.
 - Générateur de storyboard 9:16 : scènes, textes écran, transitions et prompts vidéo.
@@ -38,7 +38,7 @@ Ces coordonnées et pages sont les valeurs par défaut du formulaire, du CTA gé
 - Preview verticale type smartphone.
 - Lecture voix off via la synthèse vocale du navigateur.
 - Export JSON du projet.
-- Export WebM d'une maquette visuelle 9:16 générée côté navigateur.
+- **Moteur serveur unique pour les affiches** : `lib/posters.mjs` utilise `assets/brand.json`, les fonds photo par service et les mêmes règles de marque pour Story et carré ; aucun export navigateur concurrent n’est utilisé.
 - Bibliothèque locale des vidéos créées via `localStorage`.
 
 > Note responsable : l'application n'affirme pas qu'une vidéo deviendra virale. Elle optimise les facteurs qui augmentent les chances de performance : rétention, hook, rythme, clarté, engagement et CTA.
@@ -125,14 +125,8 @@ src/main.js         Logique frontend, bibliothèque, export, preview
 src/styles.css      Design responsive dark/premium
 ```
 
-## Limites de cette V1
+## État de la chaîne V2.2
 
-Cette V1 est un prototype fonctionnel sans appel à des modèles IA externes. Le moteur actuel utilise des templates intelligents et déterministes. Pour une version production, il faudra connecter :
+La chaîne actuelle combine génération de projet, LLM local optionnel, rendu d’affiche serveur, voix off, animation Ken Burns, mixage audio et encodage MP4. La charte est centralisée dans `assets/brand.json` afin que les futures corrections de couleur, typographie ou ton soient répercutées au même endroit.
 
-- un LLM pour enrichir hooks et scripts,
-- un service de text-to-speech compatible darija,
-- un moteur de génération ou montage vidéo,
-- un stockage cloud,
-- l'authentification,
-- la facturation,
-- une file de jobs pour les rendus vidéo longs.
+Les limites restantes concernent principalement la personnalisation de la charte à partir de publications réelles, la disponibilité de modèles Piper et l’absence de stockage cloud/authentification pour un usage multi-utilisateur.
