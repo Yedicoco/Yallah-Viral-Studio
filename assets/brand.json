@@ -1,12 +1,12 @@
 {
   "$comment": "Charte de marque Yallah Services — SOURCE UNIQUE de cohérence pour affiches, vidéos et textes. Modifiez ce fichier : tout le studio s'aligne automatiquement. Par défaut : palette et ton issus de la V1 du studio (votre design existant). À affiner avec vos publications réelles.",
   "brandName": "YALLAH SERVICES",
-  "tagline": "Mise en relation de confiance",
+  "tagline": "La qualité, notre priorité",
   "colors": {
-    "primary": "#20c997",
-    "accent": "#ffbe0b",
-    "dark": "#070a12",
-    "danger": "#ff5c7a",
+    "primary": "#c51f2b",
+    "accent": "#d9a441",
+    "dark": "#050505",
+    "danger": "#c51f2b",
     "violet": "#845ef7"
   },
   "typography": {
@@ -21,9 +21,11 @@
   },
   "languages": ["fr", "darija", "ar"],
   "visualIdentity": {
-    "description": "À compléter avec les codes réels des publications TikTok/Instagram",
-    "status": "defaults-v1",
-    "photoStyle": "photos réelles lumineuses, personnes souriantes, intérieurs marocains chaleureux",
-    "badgeStyle": "pilule dorée arrondie, texte foncé, majuscules"
+    "description": "Affiches éditoriales premium : fond noir, rouge signalétique, doré, photos de personnel en situation et hiérarchie commerciale dense mais lisible.",
+    "status": "aligned-reference-poster",
+    "photoStyle": "photos réalistes et chaleureuses, personnel souriant en uniforme noir bordé de rouge, intérieurs marocains soignés",
+    "badgeStyle": "ruban rouge à liseré doré, texte blanc ou doré, majuscules",
+    "posterLayout": "editorial-grid",
+    "posterRules": ["logo ou nom en tête", "promesse courte", "maximum cinq services", "profils en vignettes", "CTA WhatsApp rouge et doré", "zones et villes en pied"]
   }
 }
