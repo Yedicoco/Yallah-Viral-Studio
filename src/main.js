@@ -33,7 +33,6 @@ const aiRenderDownload = document.querySelector('#ai-render-download');
 const playVoiceBtn = document.querySelector('#play-voice-btn');
 const exportJsonBtn = document.querySelector('#export-json-btn');
 const exportVideoBtn = document.querySelector('#export-video-btn');
-const exportPosterBtn = document.querySelector('#export-poster-btn');
 const saveProjectBtn = document.querySelector('#save-project-btn');
 const clearLibraryBtn = document.querySelector('#clear-library-btn');
 const libraryList = document.querySelector('#library-list');
@@ -110,7 +109,6 @@ function setBusy(isBusy, label = 'Générer la vidéo') {
   generateBtn.disabled = isBusy;
   viralizeBtn.disabled = isBusy;
   exportVideoBtn.disabled = isBusy;
-  exportPosterBtn.disabled = isBusy;
   generateBtn.textContent = isBusy ? 'Création en cours…' : label;
 }
 
@@ -791,96 +789,6 @@ function drawVideoFrame(ctx, canvas, project, elapsedSeconds) {
   ctx.fill();
 }
 
-function drawPosterFrame(ctx, canvas, project) {
-  const width = canvas.width;
-  const height = canvas.height;
-  const scene = project.script.scenes[0] || {};
-  const gold = '#ffbe0b';
-  const teal = '#20c997';
-  const bg = ctx.createLinearGradient(0, 0, width, height);
-  bg.addColorStop(0, '#06131d');
-  bg.addColorStop(0.58, '#0b2230');
-  bg.addColorStop(1, '#071018');
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, width, height);
-
-  ctx.fillStyle = 'rgba(255,190,11,0.12)';
-  ctx.beginPath();
-  ctx.arc(width - 40, 120, 280, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = 'rgba(32,201,151,0.12)';
-  ctx.beginPath();
-  ctx.arc(70, height - 160, 260, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = gold;
-  ctx.font = '900 38px Inter, Arial, sans-serif';
-  ctx.fillText('YALLAH SERVICES', 72, 92);
-  ctx.fillStyle = teal;
-  drawRoundRect(ctx, 72, 116, 132, 10, 5);
-  ctx.fill();
-
-  ctx.fillStyle = 'rgba(255,255,255,0.12)';
-  drawRoundRect(ctx, 72, 164, 360, 54, 27);
-  ctx.fill();
-  ctx.fillStyle = '#ffffff';
-  ctx.font = '800 24px Inter, Arial, sans-serif';
-  ctx.fillText(String(project.input?.service || 'SERVICE').toUpperCase(), 98, 181);
-
-  ctx.textBaseline = 'top';
-  ctx.font = '900 76px Inter, Arial, sans-serif';
-  const title = scene.onScreenText || project.title || 'Votre besoin, notre solution';
-  const titleLines = wrapText(ctx, title, width - 144).slice(0, 4);
-  let y = 290;
-  for (const line of titleLines) {
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(line, 72, y);
-    y += 86;
-  }
-
-  ctx.fillStyle = '#d9f7ef';
-  ctx.font = '600 34px Inter, Arial, sans-serif';
-  const bodyLines = wrapText(ctx, scene.caption || '', width - 144).slice(0, 3);
-  y += 28;
-  for (const line of bodyLines) {
-    ctx.fillText(line, 72, y);
-    y += 48;
-  }
-
-  const ctaY = height - 230;
-  ctx.fillStyle = teal;
-  drawRoundRect(ctx, 72, ctaY, width - 144, 86, 43);
-  ctx.fill();
-  ctx.fillStyle = '#062019';
-  ctx.font = '900 30px Inter, Arial, sans-serif';
-  ctx.fillText((project.cta || 'Contactez-nous sur WhatsApp').slice(0, 46), 104, ctaY + 27);
-
-  ctx.fillStyle = 'rgba(255,255,255,0.72)';
-  ctx.font = '600 24px Inter, Arial, sans-serif';
-  ctx.fillText(`WhatsApp : ${project.contact?.gsm || ''}`, 72, height - 108);
-  ctx.fillText(`${project.contact?.instagram?.handle || '@yallahservice'}  ·  ${project.contact?.tiktok?.handle || '@yallah.services.m'}`, 72, height - 68);
-}
-
-function exportPoster() {
-  if (!currentProject) {
-    showToast('Générez d’abord un projet');
-    return;
-  }
-  const canvas = document.createElement('canvas');
-  canvas.width = 1080;
-  canvas.height = 1350;
-  drawPosterFrame(canvas.getContext('2d'), canvas, currentProject);
-  canvas.toBlob(blob => {
-    if (!blob) {
-      showToast('Export affiche impossible');
-      return;
-    }
-    const filename = `${currentProject.title.toLowerCase().replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'yallah-affiche'}.png`;
-    downloadBlob(blob, filename);
-    showToast('Affiche PNG exportée');
-  }, 'image/png');
-}
-
 async function exportVideoMockup() {
   if (!currentProject) {
     showToast('Générez d’abord un projet');
@@ -960,7 +868,6 @@ viralizeBtn.addEventListener('click', viralizeProject);
 playVoiceBtn.addEventListener('click', playVoiceOver);
 exportJsonBtn.addEventListener('click', () => exportJson());
 exportVideoBtn.addEventListener('click', exportVideoMockup);
-exportPosterBtn.addEventListener('click', exportPoster);
 saveProjectBtn.addEventListener('click', saveCurrentProject);
 clearLibraryBtn.addEventListener('click', () => {
   setLibrary([]);
