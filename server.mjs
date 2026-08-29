@@ -6,6 +6,7 @@ import { generateStudioProject, improveStudioProject, YALLAH_CONTACT } from './l
 import { createVideoJob, getVideoJob, getVideoJobFilePath } from './lib/video-jobs.mjs';
 import { listAvailableVoices } from './lib/tts.mjs';
 import { generateCreativeLayer, detectLlm, getCachedLlmStatus } from './lib/llm.mjs';
+import { renderPoster, posterFilename } from './lib/posters.mjs';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const port = Number(process.env.PORT || 4173);
@@ -148,14 +149,44 @@ const server = createServer(async (request, response) => {
     if (request.method === 'POST' && request.url?.startsWith('/api/video-render')) {
       const body = await readJsonBody(request);
       const project = body.project || body;
-      if (!project?.script?.scenes?.length) {
+      const mode = body.mode === 'poster' ? 'poster' : 'scenario';
+      const voiceText = String(body.voiceText || '').trim();
+      if (mode === 'scenario' && !project?.script?.scenes?.length) {
         sendJson(response, 400, { error: 'Projet invalide : aucune scène à rendre' });
         return;
       }
+      if (mode === 'poster' && !voiceText && !project?.script?.voiceOver) {
+        sendJson(response, 400, { error: 'Fournissez un texte de voix off pour la vidéo d\u2019affiche' });
+        return;
+      }
       try {
-        sendJson(response, 200, createVideoJob(project));
+        sendJson(response, 200, createVideoJob(project, { mode, voiceText }));
       } catch (error) {
         sendJson(response, error.statusCode || 500, { error: error.message });
+      }
+      return;
+    }
+
+    if (request.method === 'POST' && request.url?.startsWith('/api/poster-render')) {
+      const body = await readJsonBody(request);
+      const project = body.project || body;
+      if (!project?.script?.scenes?.length) {
+        sendJson(response, 400, { error: 'Projet invalide' });
+        return;
+      }
+      try {
+        const format = body.format === 'square' ? 'square' : 'story';
+        const canvas = await renderPoster(project, { format });
+        const png = canvas.toBuffer('image/png');
+        sendJson(response, 200, {
+          format,
+          filename: posterFilename(project, format),
+          sizeBytes: png.length,
+          dataUrl: `data:image/png;base64,${png.toString('base64')}`
+        });
+      } catch (error) {
+        console.error(error);
+        sendJson(response, 500, { error: error.message || 'Échec du rendu de l\u2019affiche' });
       }
       return;
     }

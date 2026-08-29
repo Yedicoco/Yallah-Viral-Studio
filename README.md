@@ -30,6 +30,8 @@ Ces coordonnées et pages sont les valeurs par défaut du formulaire, du CTA gé
 - Langues : français, darija marocaine et arabe.
 - Styles : Viral, Luxe, Commercial, Émotion, Urgent, Storytelling.
 - Bouton **« 🔥 Rendre plus viral »** : améliore hook, rythme, lisibilité et CTA.
+- **Affiches professionnelles** : fonds photo par service + marque, badge, titre, arguments et carte WhatsApp — PNG 1080×1920 (Story) et 1080×1080 (carré), FR/darija/arabe.
+- **Vidéo d'affiche avec votre voix** : écrivez votre texte de voix off dans le formulaire, il est synthétisé et posé sur l'affiche animée (MP4 avec audio).
 - **LLM local optionnel** : si Ollama / LM Studio / un serveur OpenAI-compatible est détecté, hooks, script, caption et hashtags deviennent originaux à chaque génération — avec garanties serveur (coordonnées officielles imposées, aucune promesse de viralité). Voir `docs/llm-local.md`.
 - Sous-titres automatiques par scène.
 - Caption + hashtags adaptés au service et à la ville, avec les coordonnées officielles (GSM, email) et les pages TikTok/Instagram.
@@ -83,7 +85,8 @@ Le serveur Node expose les endpoints utilisés par le frontend :
 - `GET /api/health` : état du service, coordonnées officielles et moteurs de rendu disponibles.
 - `POST /api/generate` : génère un projet vidéo à partir du brief.
 - `POST /api/viralize` : génère une version plus performante du projet courant.
-- `POST /api/video-render` : lance le rendu MP4 d'un projet (répond `{ id, status, progress }`).
+- `POST /api/poster-render` : génère une affiche PNG (`{"format": "story"|"square"}`) → dataURL base64.
+- `POST /api/video-render` : lance le rendu MP4 d'un projet (`mode: "scenario"|"poster"`, `voiceText` optionnel) (répond `{ id, status, progress }`).
 - `GET /api/video-status/:id` : progression du rendu (étape, pourcentage, projet enrichi quand terminé).
 - `GET /api/video-file/:id` : téléchargement du MP4.
 - `GET /api/video-poster/:id` : affiche JPG (frame du hook).

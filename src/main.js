@@ -18,6 +18,8 @@ const phoneProgress = document.querySelector('#phone-progress-bar');
 const scenePager = document.querySelector('#scene-pager');
 const tabContent = document.querySelector('#tab-content');
 const tabs = document.querySelectorAll('.tab');
+const posterStoryBtn = document.querySelector('#poster-story-btn');
+const posterSquareBtn = document.querySelector('#poster-square-btn');
 const renderMp4Btn = document.querySelector('#render-mp4-btn');
 const aiRenderPanel = document.querySelector('#ai-render-panel');
 const aiRenderStage = document.querySelector('#ai-render-stage');
@@ -83,7 +85,8 @@ function collectFormInput() {
     service: data.get('service'),
     duration: Number(data.get('duration')),
     style: data.get('style'),
-    language: data.get('language')
+    language: data.get('language'),
+    customVoice: (data.get('customVoice') || '').trim()
   };
 }
 
@@ -547,18 +550,50 @@ function setAiRenderProgress(stage, progress, note) {
   if (note) aiRenderNote.textContent = note;
 }
 
+// ---------- Affiches professionnelles (PNG) ----------
+
+async function downloadPoster(format) {
+  if (!currentProject) {
+    showToast('Générez d’abord un projet');
+    return;
+  }
+  const button = format === 'square' ? posterSquareBtn : posterStoryBtn;
+  const previous = button.textContent;
+  button.disabled = true;
+  button.textContent = '🖼️ Composition…';
+  try {
+    const result = await postJson('/api/poster-render', { project: currentProject, format });
+    const blob = await (await fetch(result.dataUrl)).blob();
+    downloadBlob(blob, result.filename);
+    showToast(`Affiche ${format === 'square' ? 'carrée' : 'Story'} téléchargée`);
+  } catch (error) {
+    showToast(error.message || 'Échec du rendu de l’affiche');
+  } finally {
+    button.disabled = false;
+    button.textContent = previous;
+  }
+}
+
 async function startAiRender() {
   if (!currentProject) {
     showToast('Générez d’abord un projet');
     return;
   }
+  const voiceText = (document.querySelector('#custom-voice')?.value || '').trim();
+  const isPosterMode = Boolean(voiceText);
   renderMp4Btn.disabled = true;
   renderMp4Btn.textContent = '⏳ Rendu en cours…';
   setAiRenderProgress('Envoi du projet au moteur de rendu…', 0,
-    'Voix off synthétisée scène par scène, puis montage animé et encodage H.264.');
+    isPosterMode
+      ? 'Votre texte devient une vraie voix off posée sur l’affiche animée.'
+      : 'Voix off synthétisée scène par scène, puis montage animé et encodage H.264.');
 
   try {
-    const job = await postJson('/api/video-render', { project: currentProject });
+    const job = await postJson('/api/video-render', {
+      project: currentProject,
+      mode: isPosterMode ? 'poster' : 'scenario',
+      voiceText
+    });
     activeRenderJobId = job.id;
     setAiRenderProgress(job.stage, job.progress, 'Le rendu tourne côté serveur. Vous pouvez continuer à consulter le projet.');
     renderPollTimer = setInterval(pollAiRenderStatus, 1500);
@@ -804,6 +839,8 @@ async function exportVideoMockup() {
 
 form.addEventListener('submit', generateProject);
 renderMp4Btn.addEventListener('click', startAiRender);
+posterStoryBtn.addEventListener('click', () => downloadPoster('story'));
+posterSquareBtn.addEventListener('click', () => downloadPoster('square'));
 
 // État du moteur texte (LLM local optionnel) affiché sous le formulaire.
 async function refreshLlmStatusLine() {
