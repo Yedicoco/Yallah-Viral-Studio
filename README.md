@@ -30,6 +30,7 @@ Ces coordonnées et pages sont les valeurs par défaut du formulaire, du CTA gé
 - Langues : français, darija marocaine et arabe.
 - Styles : Viral, Luxe, Commercial, Émotion, Urgent, Storytelling.
 - Bouton **« 🔥 Rendre plus viral »** : améliore hook, rythme, lisibilité et CTA.
+- **LLM local optionnel** : si Ollama / LM Studio / un serveur OpenAI-compatible est détecté, hooks, script, caption et hashtags deviennent originaux à chaque génération — avec garanties serveur (coordonnées officielles imposées, aucune promesse de viralité). Voir `docs/llm-local.md`.
 - Sous-titres automatiques par scène.
 - Caption + hashtags adaptés au service et à la ville, avec les coordonnées officielles (GSM, email) et les pages TikTok/Instagram.
 - Preview verticale type smartphone.
@@ -87,6 +88,7 @@ Le serveur Node expose les endpoints utilisés par le frontend :
 - `GET /api/video-file/:id` : téléchargement du MP4.
 - `GET /api/video-poster/:id` : affiche JPG (frame du hook).
 - `GET /api/voices` : moteurs de synthèse vocale disponibles par langue.
+- `GET /api/llm-status` : détection du LLM local (hooks originaux) — optionnel, repli templates automatique.
 
 Si `whatsapp`, `email`, `tiktok` ou `instagram` sont absents ou invalides, le générateur retombe automatiquement sur les valeurs officielles :
 `+212 691733585`, `servicesyallah@gmail.com`, `@yallah.services.m` et `@yallahservice`.

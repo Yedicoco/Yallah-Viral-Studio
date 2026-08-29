@@ -6,6 +6,8 @@ const generateBtn = document.querySelector('#generate-btn');
 const viralizeBtn = document.querySelector('#viralize-btn');
 const projectTitle = document.querySelector('#project-title');
 const scorePill = document.querySelector('#score-pill');
+const enginePill = document.querySelector('#engine-pill');
+const llmStatusLine = document.querySelector('#llm-status-line');
 const phoneScene = document.querySelector('#phone-scene');
 const sceneEmoji = document.querySelector('#scene-emoji');
 const phoneTitle = document.querySelector('#phone-title');
@@ -146,6 +148,16 @@ function renderProject(project, options = {}) {
   projectTitle.textContent = project.title;
   scorePill.textContent = `${project.optimization.score}/100`;
   scorePill.title = project.optimization.disclaimer;
+  const engine = project.textEngine || {};
+  if (engine.kind === 'llm') {
+    enginePill.textContent = `✍️ LLM · ${engine.model || engine.provider || 'local'}`;
+    enginePill.title = engine.note || 'Textes générés par un LLM local open source, puis validés.';
+    enginePill.classList.add('llm');
+  } else {
+    enginePill.textContent = '✍️ Templates';
+    enginePill.title = engine.note || 'Moteur de templates déterministe.';
+    enginePill.classList.remove('llm');
+  }
   document.documentElement.style.setProperty('--score', project.optimization.score);
   renderScenePager();
   renderPhoneScene(0);
@@ -792,6 +804,19 @@ async function exportVideoMockup() {
 
 form.addEventListener('submit', generateProject);
 renderMp4Btn.addEventListener('click', startAiRender);
+
+// État du moteur texte (LLM local optionnel) affiché sous le formulaire.
+async function refreshLlmStatusLine() {
+  try {
+    const status = await fetch('/api/llm-status').then(r => r.json());
+    llmStatusLine.textContent = status.available
+      ? `✍️ Moteur texte : LLM local détecté — ${status.provider} (${status.model}). Hooks originaux à chaque génération.`
+      : '✍️ Moteur texte : templates déterministes (hors-ligne). Pour des hooks originaux, branchez un LLM local — voir docs/llm-local.md.';
+  } catch {
+    llmStatusLine.textContent = '✍️ Moteur texte : templates déterministes (hors-ligne).';
+  }
+}
+refreshLlmStatusLine();
 viralizeBtn.addEventListener('click', viralizeProject);
 playVoiceBtn.addEventListener('click', playVoiceOver);
 exportJsonBtn.addEventListener('click', () => exportJson());

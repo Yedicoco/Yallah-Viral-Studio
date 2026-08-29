@@ -1,6 +1,6 @@
 {
   "name": "yallah-viral-studio",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Studio de pré-production + génération vidéo IA open source (MP4 H.264, voix off TTS, musique) pour TikTok/Reels — Yallah Services.",
   "type": "module",
   "private": true,
@@ -8,7 +8,8 @@
     "setup": "node scripts/setup-fonts.mjs",
     "dev": "node server.mjs",
     "start": "node server.mjs",
-    "check": "node --check server.mjs && node --check lib/generator.mjs && node --check lib/audio.mjs && node --check lib/tts.mjs && node --check lib/frame-draw.mjs && node --check lib/video-jobs.mjs && node --check src/main.js"
+    "check": "node --check server.mjs && node --check lib/generator.mjs && node --check lib/audio.mjs && node --check lib/tts.mjs && node --check lib/frame-draw.mjs && node --check lib/video-jobs.mjs && node --check src/main.js",
+    "stub:llm": "node scripts/llm-stub.mjs"
   },
   "keywords": [
     "tiktok",

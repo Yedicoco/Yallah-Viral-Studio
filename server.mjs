@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { generateStudioProject, improveStudioProject, YALLAH_CONTACT } from './lib/generator.mjs';
 import { createVideoJob, getVideoJob, getVideoJobFilePath } from './lib/video-jobs.mjs';
 import { listAvailableVoices } from './lib/tts.mjs';
+import { generateCreativeLayer, detectLlm, getCachedLlmStatus } from './lib/llm.mjs';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const port = Number(process.env.PORT || 4173);
@@ -105,20 +106,40 @@ const server = createServer(async (request, response) => {
           engine: 'FFmpeg (libx264/AAC) + @napi-rs/canvas — open source',
           resolution: '720x1280 · 30 fps',
           voices: listAvailableVoices()
-        }
+        },
+        textEngine: getCachedLlmStatus().available
+          ? { kind: 'llm', provider: getCachedLlmStatus().provider, model: getCachedLlmStatus().model }
+          : { kind: 'templates' }
       });
       return;
     }
 
     if (request.method === 'POST' && request.url?.startsWith('/api/generate')) {
       const input = await readJsonBody(request);
-      sendJson(response, 200, generateStudioProject(input));
+      const creative = await generateCreativeLayer(input);
+      const project = generateStudioProject(input, {
+        creative: creative?.creative,
+        textEngine: creative
+          ? { kind: 'llm', provider: creative.provider, model: creative.model, note: 'Hooks et script générés par un LLM local open source, puis validés (coordonnées officielles imposées).' }
+          : undefined
+      });
+      sendJson(response, 200, project);
       return;
     }
 
     if (request.method === 'POST' && request.url?.startsWith('/api/viralize')) {
       const input = await readJsonBody(request);
-      sendJson(response, 200, improveStudioProject(input.project || input));
+      const previous = input.project || input;
+      const creative = await generateCreativeLayer(previous.input || previous, {
+        viralBoost: true,
+        previousHooks: Array.isArray(previous.hooks) ? previous.hooks.slice(0, 5) : []
+      });
+      sendJson(response, 200, improveStudioProject(previous, {
+        creative: creative?.creative,
+        textEngine: creative
+          ? { kind: 'llm', provider: creative.provider, model: creative.model, note: 'Version virale réécrite par un LLM local open source, puis validée.' }
+          : undefined
+      }));
       return;
     }
 
@@ -190,6 +211,11 @@ const server = createServer(async (request, response) => {
       return;
     }
 
+    if (request.method === 'GET' && request.url?.startsWith('/api/llm-status')) {
+      sendJson(response, 200, await detectLlm({ force: true }));
+      return;
+    }
+
     if (request.method === 'GET' && request.url?.startsWith('/api/voices')) {
       sendJson(response, 200, { voices: listAvailableVoices() });
       return;
@@ -209,4 +235,10 @@ const server = createServer(async (request, response) => {
 
 server.listen(port, host, () => {
   console.log(`Yallah Viral Studio running on http://${host}:${port}`);
+  // Préchauffe la détection du LLM local (Ollama / LM Studio) sans bloquer.
+  detectLlm().then(status => {
+    console.log(status.available
+      ? `[llm] moteur texte : ${status.provider} (${status.model})`
+      : '[llm] aucun LLM local détecté — moteur templates (voir docs/llm-local.md pour brancher)');
+  });
 });
