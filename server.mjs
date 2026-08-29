@@ -2,7 +2,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { generateStudioProject, improveStudioProject } from './lib/generator.mjs';
+import { generateStudioProject, improveStudioProject, YALLAH_CONTACT } from './lib/generator.mjs';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const port = Number(process.env.PORT || 4173);
@@ -91,7 +91,7 @@ async function serveStatic(request, response) {
 const server = createServer(async (request, response) => {
   try {
     if (request.method === 'GET' && request.url?.startsWith('/api/health')) {
-      sendJson(response, 200, { ok: true, app: 'Yallah Viral Studio' });
+      sendJson(response, 200, { ok: true, app: 'Yallah Viral Studio', contact: YALLAH_CONTACT });
       return;
     }
 

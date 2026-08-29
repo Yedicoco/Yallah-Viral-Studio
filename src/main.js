@@ -8,6 +8,7 @@ const sceneEmoji = document.querySelector('#scene-emoji');
 const phoneTitle = document.querySelector('#phone-title');
 const phoneCaption = document.querySelector('#phone-caption');
 const phoneCta = document.querySelector('#phone-cta');
+const phoneSocials = document.querySelector('#phone-socials');
 const phoneProgress = document.querySelector('#phone-progress-bar');
 const scenePager = document.querySelector('#scene-pager');
 const tabContent = document.querySelector('#tab-content');
@@ -20,6 +21,16 @@ const clearLibraryBtn = document.querySelector('#clear-library-btn');
 const libraryList = document.querySelector('#library-list');
 
 const STORAGE_KEY = 'yallah-viral-studio-library';
+
+// Coordonnées et pages officielles Yallah Services
+// (secours pour les projets sauvegardés avant l'ajout de l'email et des réseaux).
+const YALLAH_CONTACT = {
+  gsm: '+212 691733585',
+  email: 'servicesyallah@gmail.com',
+  tiktok: { handle: '@yallah.services.m', url: 'https://www.tiktok.com/@yallah.services.m' },
+  instagram: { handle: '@yallahservice', url: 'https://www.instagram.com/yallahservice' }
+};
+
 const gradients = [
   'linear-gradient(160deg, rgba(32, 201, 151, .98), rgba(7, 10, 18, .9) 56%, rgba(255, 190, 11, .9))',
   'linear-gradient(160deg, rgba(255, 77, 79, .98), rgba(12, 17, 31, .92) 58%, rgba(255, 190, 11, .88))',
@@ -49,6 +60,9 @@ function collectFormInput() {
     objective: data.get('objective'),
     city: data.get('city'),
     whatsapp: data.get('whatsapp'),
+    email: data.get('email'),
+    tiktok: data.get('tiktok'),
+    instagram: data.get('instagram'),
     service: data.get('service'),
     duration: Number(data.get('duration')),
     style: data.get('style'),
@@ -106,6 +120,13 @@ async function viralizeProject() {
 
 function renderProject(project, options = {}) {
   currentProject = project;
+  const storedContact = currentProject.contact || {};
+  currentProject.contact = {
+    gsm: storedContact.gsm || currentProject.input?.whatsapp || YALLAH_CONTACT.gsm,
+    email: storedContact.email || currentProject.input?.email || YALLAH_CONTACT.email,
+    tiktok: storedContact.tiktok || YALLAH_CONTACT.tiktok,
+    instagram: storedContact.instagram || YALLAH_CONTACT.instagram
+  };
   currentSceneIndex = 0;
   projectTitle.textContent = project.title;
   scorePill.textContent = `${project.optimization.score}/100`;
@@ -141,6 +162,8 @@ function renderPhoneScene(index) {
   phoneTitle.textContent = scene.onScreenText;
   phoneCaption.textContent = scene.caption;
   phoneCta.textContent = currentProject.cta;
+  phoneSocials.textContent = currentProject.socialLine
+    || `${YALLAH_CONTACT.tiktok.handle} · ${YALLAH_CONTACT.instagram.handle}`;
   phoneProgress.style.width = `${Math.round(((index + 1) / scenes.length) * 100)}%`;
   renderScenePager();
 }
@@ -258,6 +281,54 @@ function renderSubtitles() {
   `;
 }
 
+function projectContact() {
+  const contact = currentProject?.contact || {};
+  return {
+    gsm: contact.gsm || YALLAH_CONTACT.gsm,
+    email: contact.email || YALLAH_CONTACT.email,
+    tiktok: contact.tiktok || YALLAH_CONTACT.tiktok,
+    instagram: contact.instagram || YALLAH_CONTACT.instagram
+  };
+}
+
+function renderContactCard() {
+  const contact = projectContact();
+  const whatsappDigits = contact.gsm.replace(/[^0-9]/g, '');
+
+  return `
+    <article class="caption-card contact-card">
+      <header>
+        <div>
+          <h3>☎️ Coordonnées et pages officielles Yallah Services</h3>
+          <p>GSM/WhatsApp, email, TikTok et Instagram injectés dans le CTA, la caption et l'écran final.</p>
+        </div>
+      </header>
+      <div class="contact-actions">
+        <a class="contact-link" href="https://wa.me/${encodeURIComponent(whatsappDigits)}" target="_blank" rel="noreferrer">📲 ${escapeHtml(contact.gsm)}</a>
+        <a class="contact-link" href="mailto:${encodeURIComponent(contact.email)}">✉️ ${escapeHtml(contact.email)}</a>
+        <a class="contact-link" href="${escapeHtml(contact.tiktok.url)}" target="_blank" rel="noreferrer">🎵 TikTok ${escapeHtml(contact.tiktok.handle)}</a>
+        <a class="contact-link" href="${escapeHtml(contact.instagram.url)}" target="_blank" rel="noreferrer">📸 Instagram ${escapeHtml(contact.instagram.handle)}</a>
+        <button type="button" class="copy-btn" data-copy="${escapeHtml(contact.gsm)}">Copier GSM</button>
+        <button type="button" class="copy-btn" data-copy="${escapeHtml(contact.email)}">Copier email</button>
+        <button type="button" class="copy-btn" data-copy="${escapeHtml(contact.tiktok.url)}">Copier TikTok</button>
+        <button type="button" class="copy-btn" data-copy="${escapeHtml(contact.instagram.url)}">Copier Instagram</button>
+      </div>
+      ${currentProject.followCta ? `
+        <div class="voice-box">
+          <strong>CTA de suivi :</strong> ${escapeHtml(currentProject.followCta)}
+          <button type="button" class="copy-btn" data-copy="${escapeHtml(currentProject.followCta)}">Copier</button>
+        </div>
+      ` : ''}
+      ${currentProject.socialLine ? `
+        <div class="voice-box">
+          <strong>Ligne réseaux (caption) :</strong> ${escapeHtml(currentProject.socialLine)}
+          <button type="button" class="copy-btn" data-copy="${escapeHtml(currentProject.socialLine)}">Copier</button>
+        </div>
+      ` : ''}
+    </article>
+  `;
+}
+
 function renderCaption() {
   return `
     <article class="caption-card" dir="${currentProject.voice.direction}">
@@ -271,6 +342,7 @@ function renderCaption() {
       <p>${escapeHtml(currentProject.caption).replaceAll('\n', '<br />')}</p>
       <div class="voice-box"><strong>CTA :</strong> ${escapeHtml(currentProject.cta)}</div>
     </article>
+    ${renderContactCard()}
     <article class="caption-card">
       <header>
         <div>
@@ -504,6 +576,16 @@ function drawVideoFrame(ctx, canvas, project, elapsedSeconds) {
   ctx.font = '900 26px Inter, Arial, sans-serif';
   ctx.letterSpacing = '3px';
   ctx.fillText('YALLAH SERVICES', 58, 100);
+
+  const handles = project.socialLine
+    ? `${project.contact?.tiktok?.handle || ''} · ${project.contact?.instagram?.handle || ''}`
+    : '';
+  if (handles) {
+    ctx.font = '700 22px Inter, Arial, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(handles, width - 58, 100);
+    ctx.textAlign = 'left';
+  }
 
   ctx.font = '110px Inter, Arial, sans-serif';
   ctx.fillText(scene.emoji || '🎬', 58, 245);

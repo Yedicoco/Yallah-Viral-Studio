@@ -2,15 +2,26 @@
 
 Prototype V1 d'application pour créer rapidement des contenus courts, commerciaux et accrocheurs pour **Yallah Services** : TikTok, Instagram Reels et YouTube Shorts.
 
+## Coordonnées et pages officielles Yallah Services
+
+| Canal | Valeur | Lien |
+| --- | --- | --- |
+| GSM / WhatsApp | `+212 691733585` | <https://wa.me/212691733585> |
+| Email | `servicesyallah@gmail.com` | <mailto:servicesyallah@gmail.com> |
+| TikTok | `@yallah.services.m` | <https://www.tiktok.com/@yallah.services.m> |
+| Instagram | `@yallahservice` | <https://www.instagram.com/yallahservice> |
+
+Ces coordonnées et pages sont les valeurs par défaut du formulaire, du CTA généré, de la caption générée et de l'API (constante `YALLAH_CONTACT` dans `lib/generator.mjs` : source de vérité unique).
+
 ## Fonctionnalités V1
 
-- Créateur de script : hooks, scénario, voix off et CTA WhatsApp.
+- Créateur de script : hooks, scénario, voix off et CTA WhatsApp + email.
 - Générateur de storyboard 9:16 : scènes, textes écran, transitions et prompts vidéo.
 - Langues : français, darija marocaine et arabe.
 - Styles : Viral, Luxe, Commercial, Émotion, Urgent, Storytelling.
 - Bouton **« 🔥 Rendre plus viral »** : améliore hook, rythme, lisibilité et CTA.
 - Sous-titres automatiques par scène.
-- Caption + hashtags adaptés au service et à la ville.
+- Caption + hashtags adaptés au service et à la ville, avec les coordonnées officielles (GSM, email) et les pages TikTok/Instagram.
 - Preview verticale type smartphone.
 - Lecture voix off via la synthèse vocale du navigateur.
 - Export JSON du projet.
@@ -37,10 +48,14 @@ npm run check
 
 ## API locale
 
-Le serveur Node expose deux endpoints utilisés par le frontend :
+Le serveur Node expose les endpoints utilisés par le frontend :
 
+- `GET /api/health` : état du service et coordonnées officielles Yallah Services.
 - `POST /api/generate` : génère un projet vidéo à partir du brief.
 - `POST /api/viralize` : génère une version plus performante du projet courant.
+
+Si `whatsapp`, `email`, `tiktok` ou `instagram` sont absents ou invalides, le générateur retombe automatiquement sur les valeurs officielles :
+`+212 691733585`, `servicesyallah@gmail.com`, `@yallah.services.m` et `@yallahservice`.
 
 Exemple :
 
@@ -54,7 +69,10 @@ curl -X POST http://localhost:4173/api/generate \
     "duration": 30,
     "style": "viral",
     "language": "fr",
-    "whatsapp": "+212 6 00 00 00 00"
+    "whatsapp": "+212 691733585",
+    "email": "servicesyallah@gmail.com",
+    "tiktok": "@yallah.services.m",
+    "instagram": "@yallahservice"
   }'
 ```
 
@@ -63,7 +81,7 @@ curl -X POST http://localhost:4173/api/generate \
 ```text
 index.html          Interface principale
 server.mjs          Serveur statique + API locale
-lib/generator.mjs   Moteur de génération de hooks/scripts/storyboards
+lib/generator.mjs   Moteur de génération de hooks/scripts/storyboards (constante YALLAH_CONTACT)
 src/main.js         Logique frontend, bibliothèque, export, preview
 src/styles.css      Design responsive dark/premium
 ```
