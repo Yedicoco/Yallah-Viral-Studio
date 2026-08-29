@@ -25,15 +25,19 @@ L'application génère automatiquement :
 - des hashtags adaptés,
 - une vidéo exportable en 9:16.
 
-## Coordonnées officielles Yallah Services (à utiliser partout)
+## Coordonnées et pages officielles Yallah Services (à utiliser partout)
 
-- **GSM / WhatsApp :** `+212 691733585`
-- **Email :** `servicesyallah@gmail.com`
+| Canal | Valeur | Lien |
+| --- | --- | --- |
+| GSM / WhatsApp | `+212 691733585` | <https://wa.me/212691733585> |
+| Email | `servicesyallah@gmail.com` | <mailto:servicesyallah@gmail.com> |
+| TikTok | `@yallah.services.m` | <https://www.tiktok.com/@yallah.services.m> |
+| Instagram | `@yallahservice` | <https://www.instagram.com/yallahservice> |
 
-Ces coordonnées doivent apparaître systématiquement dans :
+Ces coordonnées et pages doivent apparaître systématiquement dans :
 
-- le formulaire de brief (valeurs par défaut des champs GSM/WhatsApp et email),
-- le CTA généré (voix off, écran final, caption),
+- le formulaire de brief (valeurs par défaut des champs GSM/WhatsApp, email, TikTok et Instagram),
+- le CTA généré (voix off, écran final, caption) et le CTA de suivi,
 - la caption générée,
 - le README, la documentation et l'API.
 
@@ -73,6 +77,8 @@ L'application doit rester responsable : elle ne promet jamais qu'une vidéo devi
 - Ville.
 - Numéro GSM/WhatsApp (`+212 691733585`).
 - Email de contact (`servicesyallah@gmail.com`).
+- Page TikTok (`@yallah.services.m`).
+- Page Instagram (`@yallahservice`).
 - Audience cible.
 - Niveau d'énergie.
 - Option : utiliser images/vidéos uploadées par l'utilisateur.
@@ -192,6 +198,7 @@ Prévoir :
 - Hook visible dans les 2 premières secondes.
 - Textes lisibles sur mobile.
 - CTA WhatsApp et email présents à la fin, dans la caption et dans les exports.
+- Appel à suivre les pages TikTok et Instagram officielles.
 - Sous-titres synchronisés.
 - Export MP4 fonctionnel.
 - Interface utilisable sur mobile.

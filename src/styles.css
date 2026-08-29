@@ -555,6 +555,15 @@ textarea:focus {
   border: 1px solid rgba(255, 255, 255, 0.16);
 }
 
+.phone-socials {
+  align-self: flex-start;
+  margin-top: 8px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.9);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
+}
+
 .phone-progress {
   height: 6px;
   background: rgba(255, 255, 255, 0.18);
@@ -884,6 +893,23 @@ textarea:focus {
   flex-wrap: wrap;
   gap: 10px;
   margin-top: 12px;
+}
+
+.contact-card .voice-box {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.contact-card .voice-box .copy-btn {
+  padding: 8px 14px;
+  font-size: 0.84rem;
+}
+
+.footer-socials {
+  font-size: 0.96rem;
 }
 
 .contact-link,
