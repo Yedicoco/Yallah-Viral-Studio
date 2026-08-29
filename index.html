@@ -33,7 +33,8 @@
             <h1>Transformez une idée Yallah Services en vidéo verticale prête à produire.</h1>
             <p class="hero-text">
               Générez hooks, script, storyboard 9:16, voix off, sous-titres dynamiques,
-              caption, hashtags et CTA WhatsApp — sans promettre artificiellement le viral.
+              caption, hashtags et CTA WhatsApp — puis produisez la vidéo finale :
+              MP4 9:16 H.264 avec voix off synthétisée et musique, 100&nbsp;% open source.
             </p>
             <div class="hero-badges" aria-label="Fonctionnalités clés">
               <span>🎯 Hooks TikTok</span>
@@ -41,6 +42,7 @@
               <span>📲 CTA WhatsApp + email</span>
               <span>📱 Suivre TikTok &amp; Instagram</span>
               <span>🔥 Rendre plus viral</span>
+              <span>🎬 Vidéo MP4 IA (voix + musique)</span>
             </div>
           </div>
 
@@ -193,14 +195,29 @@
             <div class="scene-pager" id="scene-pager" aria-label="Navigation des scènes"></div>
 
             <div class="export-actions">
+              <button type="button" class="primary-btn ai-render-btn" id="render-mp4-btn">🎬 Générer la vidéo IA (MP4)</button>
               <button type="button" class="secondary-btn" id="play-voice-btn">▶️ Écouter la voix off</button>
               <button type="button" class="secondary-btn" id="export-json-btn">⬇️ Export JSON</button>
               <button type="button" class="secondary-btn" id="export-video-btn">🎞️ Export WebM maquette</button>
               <button type="button" class="secondary-btn" id="save-project-btn">💾 Sauver</button>
             </div>
             <p class="microcopy" id="export-note">
-              Export WebM : maquette visuelle générée dans le navigateur. La voix off reste disponible en lecture séparée.
+              🎬 Rendu IA serveur (open source) : voix off synthétisée, musique, montage animé et export MP4 H.264 avec audio — prêt à publier.
             </p>
+
+            <div class="ai-render-panel" id="ai-render-panel" hidden>
+              <div class="ai-render-head">
+                <strong id="ai-render-stage">Préparation du rendu…</strong>
+                <span class="ai-render-percent" id="ai-render-percent">0%</span>
+              </div>
+              <div class="ai-render-bar"><span id="ai-render-bar-fill"></span></div>
+              <p class="microcopy" id="ai-render-note">Le premier rendu inclut la synthèse vocale scène par scène. Comptez ~30 à 60 s selon la durée.</p>
+              <div class="ai-render-result" id="ai-render-result" hidden>
+                <video id="ai-render-video" class="ai-render-video" controls playsinline preload="metadata"></video>
+                <div class="ai-render-meta" id="ai-render-meta"></div>
+                <a class="secondary-btn ai-download" id="ai-render-download" href="#" download>⬇️ Télécharger le MP4</a>
+              </div>
+            </div>
           </article>
 
           <article class="panel output-panel">

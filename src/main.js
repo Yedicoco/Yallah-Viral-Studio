@@ -1,3 +1,6 @@
+// Moteur de dessin partagé avec le rendu serveur (maquette WebM = frames du MP4).
+import { drawStudioFrame, fallbackTimeline } from '/lib/frame-draw.mjs';
+
 const form = document.querySelector('#studio-form');
 const generateBtn = document.querySelector('#generate-btn');
 const viralizeBtn = document.querySelector('#viralize-btn');
@@ -13,6 +16,16 @@ const phoneProgress = document.querySelector('#phone-progress-bar');
 const scenePager = document.querySelector('#scene-pager');
 const tabContent = document.querySelector('#tab-content');
 const tabs = document.querySelectorAll('.tab');
+const renderMp4Btn = document.querySelector('#render-mp4-btn');
+const aiRenderPanel = document.querySelector('#ai-render-panel');
+const aiRenderStage = document.querySelector('#ai-render-stage');
+const aiRenderPercent = document.querySelector('#ai-render-percent');
+const aiRenderBarFill = document.querySelector('#ai-render-bar-fill');
+const aiRenderNote = document.querySelector('#ai-render-note');
+const aiRenderResult = document.querySelector('#ai-render-result');
+const aiRenderVideo = document.querySelector('#ai-render-video');
+const aiRenderMeta = document.querySelector('#ai-render-meta');
+const aiRenderDownload = document.querySelector('#ai-render-download');
 const playVoiceBtn = document.querySelector('#play-voice-btn');
 const exportJsonBtn = document.querySelector('#export-json-btn');
 const exportVideoBtn = document.querySelector('#export-video-btn');
@@ -44,6 +57,8 @@ let currentSceneIndex = 0;
 let activeTab = 'hooks';
 let autoplayTimer = null;
 let toastTimer = null;
+let renderPollTimer = null;
+let activeRenderJobId = null;
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -136,6 +151,7 @@ function renderProject(project, options = {}) {
   renderPhoneScene(0);
   renderActiveTab();
   startAutoplay();
+  resetAiRenderPanel();
   if (options.toast) showToast(options.toast);
 }
 
@@ -497,6 +513,97 @@ function exportJson(project = currentProject) {
   showToast('Export JSON lancé');
 }
 
+// ---------- Rendu vidéo IA (pipeline open source serveur) ----------
+
+function resetAiRenderPanel() {
+  clearInterval(renderPollTimer);
+  renderPollTimer = null;
+  activeRenderJobId = null;
+  aiRenderPanel.hidden = true;
+  aiRenderResult.hidden = true;
+  aiRenderVideo.removeAttribute('src');
+  aiRenderDownload.removeAttribute('href');
+  renderMp4Btn.disabled = false;
+  renderMp4Btn.textContent = '🎬 Générer la vidéo IA (MP4)';
+}
+
+function setAiRenderProgress(stage, progress, note) {
+  aiRenderPanel.hidden = false;
+  aiRenderStage.textContent = stage;
+  aiRenderPercent.textContent = `${Math.round(progress * 100)}%`;
+  aiRenderBarFill.style.width = `${Math.round(progress * 100)}%`;
+  if (note) aiRenderNote.textContent = note;
+}
+
+async function startAiRender() {
+  if (!currentProject) {
+    showToast('Générez d’abord un projet');
+    return;
+  }
+  renderMp4Btn.disabled = true;
+  renderMp4Btn.textContent = '⏳ Rendu en cours…';
+  setAiRenderProgress('Envoi du projet au moteur de rendu…', 0,
+    'Voix off synthétisée scène par scène, puis montage animé et encodage H.264.');
+
+  try {
+    const job = await postJson('/api/video-render', { project: currentProject });
+    activeRenderJobId = job.id;
+    setAiRenderProgress(job.stage, job.progress, 'Le rendu tourne côté serveur. Vous pouvez continuer à consulter le projet.');
+    renderPollTimer = setInterval(pollAiRenderStatus, 1500);
+  } catch (error) {
+    showToast(error.message || 'Impossible de lancer le rendu');
+    renderMp4Btn.disabled = false;
+    renderMp4Btn.textContent = '🎬 Générer la vidéo IA (MP4)';
+  }
+}
+
+async function pollAiRenderStatus() {
+  if (!activeRenderJobId) return;
+  try {
+    const status = await fetch(`/api/video-status/${encodeURIComponent(activeRenderJobId)}`).then(r => {
+      if (!r.ok) throw new Error('Rendu introuvable');
+      return r.json();
+    });
+
+    if (status.status === 'error') {
+      clearInterval(renderPollTimer);
+      renderPollTimer = null;
+      setAiRenderProgress('Échec du rendu', 0, status.error || 'Erreur inconnue');
+      showToast(status.error || 'Le rendu a échoué');
+      renderMp4Btn.disabled = false;
+      renderMp4Btn.textContent = '🎬 Réessayer le rendu IA';
+      return;
+    }
+
+    setAiRenderProgress(status.stage, Math.max(status.progress, 0.02));
+
+    if (status.status === 'done' && status.video) {
+      clearInterval(renderPollTimer);
+      renderPollTimer = null;
+      aiRenderResult.hidden = false;
+      aiRenderVideo.src = status.video.url;
+      aiRenderDownload.href = status.video.url;
+      aiRenderDownload.setAttribute('download', status.video.filename);
+      const sizeMb = (status.video.sizeBytes / (1024 * 1024)).toFixed(1);
+      const engine = status.project?.render?.voiceEngine || 'voix synthétisée';
+      aiRenderMeta.innerHTML = `
+        <span>✅ ${status.video.durationSeconds}s · 720×1280 · 30 i/s · ${sizeMb} Mo</span>
+        <span>🗣️ ${escapeHtml(engine)}</span>
+      `;
+      setAiRenderProgress('Vidéo prête', 1, 'Vérifiez la voix et le rythme, puis téléchargez et publiez.');
+      renderMp4Btn.disabled = false;
+      renderMp4Btn.textContent = '🎬 Régénérer la vidéo IA';
+      showToast('Vidéo MP4 prête 🎉');
+    }
+  } catch (error) {
+    clearInterval(renderPollTimer);
+    renderPollTimer = null;
+    setAiRenderProgress('Rendu interrompu', 0, error.message);
+    renderMp4Btn.disabled = false;
+    renderMp4Btn.textContent = '🎬 Réessayer le rendu IA';
+  }
+}
+
 function playVoiceOver() {
   if (!currentProject) {
     showToast('Générez d’abord un projet');
@@ -640,6 +747,7 @@ async function exportVideoMockup() {
   canvas.width = 720;
   canvas.height = 1280;
   const ctx = canvas.getContext('2d');
+  const timeline = fallbackTimeline(currentProject);
   const stream = canvas.captureStream(30);
   const mimeType = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'].find(type => MediaRecorder.isTypeSupported(type)) || '';
   const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
@@ -660,7 +768,7 @@ async function exportVideoMockup() {
   await new Promise(resolve => {
     function frame(now) {
       const elapsed = Math.min(totalMs, now - startedAt);
-      drawVideoFrame(ctx, canvas, currentProject, elapsed / 1000);
+      drawStudioFrame(ctx, { project: currentProject, timeline, elapsedSeconds: elapsed / 1000, width: canvas.width, height: canvas.height });
       exportVideoBtn.textContent = `🎞️ Export ${Math.round((elapsed / totalMs) * 100)}%`;
       if (elapsed < totalMs) {
         requestAnimationFrame(frame);
@@ -683,6 +791,7 @@ async function exportVideoMockup() {
 }
 
 form.addEventListener('submit', generateProject);
+renderMp4Btn.addEventListener('click', startAiRender);
 viralizeBtn.addEventListener('click', viralizeProject);
 playVoiceBtn.addEventListener('click', playVoiceOver);
 exportJsonBtn.addEventListener('click', () => exportJson());

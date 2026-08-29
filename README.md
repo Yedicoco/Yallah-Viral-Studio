@@ -1,6 +1,16 @@
 # Yallah Viral Studio
 
-Prototype V1 d'application pour créer rapidement des contenus courts, commerciaux et accrocheurs pour **Yallah Services** : TikTok, Instagram Reels et YouTube Shorts.
+Studio de création de contenus courts, commerciaux et accrocheurs pour **Yallah Services** : TikTok, Instagram Reels et YouTube Shorts.
+
+**V2 — génération vidéo IA open source** : en un clic, le studio produit désormais la **vidéo finale MP4 (H.264 + AAC, 720×1280, 30 i/s)** avec voix off synthétisée, bande-son musicale et montage animé — sans clé API, sans service payant, 100 % hors-ligne.
+
+| Étape | Moteur (open source) |
+| --- | --- |
+| Voix off FR / Darija / Arabe | [Piper TTS](https://github.com/rhasspy/piper) si un modèle est présent, sinon espeak-ng (embarqué) |
+| Musique | composition procédurale JS (kick, basse, nappes selon le style) |
+| Montage animé 9:16 | `@napi-rs/canvas` + moteur partagé `lib/frame-draw.mjs` (identique à la preview) |
+| Encodage | FFmpeg (libx264/AAC) via `@ffmpeg-installer` |
+| Montage audio | ducking voix/musique + limiteur, mixage en JS pur |
 
 ## Coordonnées et pages officielles Yallah Services
 
@@ -32,13 +42,32 @@ Ces coordonnées et pages sont les valeurs par défaut du formulaire, du CTA gé
 
 ## Démarrage
 
-Aucune dépendance externe n'est requise.
-
 ```bash
+npm install        # installe ffmpeg + canvas + polices (paquets npm, aucun service distant)
+npm run setup      # extrait les polices TTF (Inter + Noto Sans Arabic) dans assets/fonts/
 npm start
 ```
 
 Puis ouvrir : <http://localhost:4173>
+
+Remplir le brief → **Générer la vidéo** → **🎬 Générer la vidéo IA (MP4)**.
+La progression s'affiche en direct (voix off scène par scène, animation, encodage) et la vidéo
+apparaît dans un lecteur intégré avec bouton de téléchargement.
+
+### Voix off : deux niveaux de qualité
+
+- **Par défaut (zéro configuration)** : espeak-ng — robotic mais fiable, timing précis, 100 % hors-ligne.
+- **Qualité neuronale (recommandé)** : déposer les modèles [Piper](https://github.com/rhasspy/piper) dans `assets/models/` :
+  - `fr_FR-tom-medium.onnx` (+ `.json`) pour le français,
+  - `ar_JO-kareem-medium.onnx` (+ `.json`) pour l'arabe et la darija.
+  Le moteur Piper est détecté automatiquement (`GET /api/voices` pour vérifier). Voir `docs/generation-video-ia.md`.
+
+### Notes de rendu
+
+- La durée du MP4 s'adapte à la durée réelle de la voix off (une vidéo « 30 s » peut durer 35-45 s avec la voix espeak ; Piper est plus rapide).
+- Les vidéos sont conservées 3 h côté serveur (répertoire temporaire), puis purgées automatiquement.
+- La darija (transcrite en latin) est lue par la voix arabe : le rendu reste approximatif — une vraie voix TTS darija reste la limite n°2 (voir docs).
+- Aucune garantie de viralité : le score /100 reste une checklist interne.
 
 Pour vérifier la syntaxe :
 
@@ -50,9 +79,14 @@ npm run check
 
 Le serveur Node expose les endpoints utilisés par le frontend :
 
-- `GET /api/health` : état du service et coordonnées officielles Yallah Services.
+- `GET /api/health` : état du service, coordonnées officielles et moteurs de rendu disponibles.
 - `POST /api/generate` : génère un projet vidéo à partir du brief.
 - `POST /api/viralize` : génère une version plus performante du projet courant.
+- `POST /api/video-render` : lance le rendu MP4 d'un projet (répond `{ id, status, progress }`).
+- `GET /api/video-status/:id` : progression du rendu (étape, pourcentage, projet enrichi quand terminé).
+- `GET /api/video-file/:id` : téléchargement du MP4.
+- `GET /api/video-poster/:id` : affiche JPG (frame du hook).
+- `GET /api/voices` : moteurs de synthèse vocale disponibles par langue.
 
 Si `whatsapp`, `email`, `tiktok` ou `instagram` sont absents ou invalides, le générateur retombe automatiquement sur les valeurs officielles :
 `+212 691733585`, `servicesyallah@gmail.com`, `@yallah.services.m` et `@yallahservice`.
