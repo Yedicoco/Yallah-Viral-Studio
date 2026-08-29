@@ -1,8 +1,13 @@
+// Moteur de dessin partagé avec le rendu serveur (maquette WebM = frames du MP4).
+import { drawStudioFrame, fallbackTimeline } from '/lib/frame-draw.mjs';
+
 const form = document.querySelector('#studio-form');
 const generateBtn = document.querySelector('#generate-btn');
 const viralizeBtn = document.querySelector('#viralize-btn');
 const projectTitle = document.querySelector('#project-title');
 const scorePill = document.querySelector('#score-pill');
+const enginePill = document.querySelector('#engine-pill');
+const llmStatusLine = document.querySelector('#llm-status-line');
 const phoneScene = document.querySelector('#phone-scene');
 const sceneEmoji = document.querySelector('#scene-emoji');
 const phoneTitle = document.querySelector('#phone-title');
@@ -13,10 +18,21 @@ const phoneProgress = document.querySelector('#phone-progress-bar');
 const scenePager = document.querySelector('#scene-pager');
 const tabContent = document.querySelector('#tab-content');
 const tabs = document.querySelectorAll('.tab');
+const posterStoryBtn = document.querySelector('#poster-story-btn');
+const posterSquareBtn = document.querySelector('#poster-square-btn');
+const renderMp4Btn = document.querySelector('#render-mp4-btn');
+const aiRenderPanel = document.querySelector('#ai-render-panel');
+const aiRenderStage = document.querySelector('#ai-render-stage');
+const aiRenderPercent = document.querySelector('#ai-render-percent');
+const aiRenderBarFill = document.querySelector('#ai-render-bar-fill');
+const aiRenderNote = document.querySelector('#ai-render-note');
+const aiRenderResult = document.querySelector('#ai-render-result');
+const aiRenderVideo = document.querySelector('#ai-render-video');
+const aiRenderMeta = document.querySelector('#ai-render-meta');
+const aiRenderDownload = document.querySelector('#ai-render-download');
 const playVoiceBtn = document.querySelector('#play-voice-btn');
 const exportJsonBtn = document.querySelector('#export-json-btn');
 const exportVideoBtn = document.querySelector('#export-video-btn');
-const exportPosterBtn = document.querySelector('#export-poster-btn');
 const saveProjectBtn = document.querySelector('#save-project-btn');
 const clearLibraryBtn = document.querySelector('#clear-library-btn');
 const libraryList = document.querySelector('#library-list');
@@ -45,6 +61,8 @@ let currentSceneIndex = 0;
 let activeTab = 'hooks';
 let autoplayTimer = null;
 let toastTimer = null;
+let renderPollTimer = null;
+let activeRenderJobId = null;
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -67,7 +85,8 @@ function collectFormInput() {
     service: data.get('service'),
     duration: Number(data.get('duration')),
     style: data.get('style'),
-    language: data.get('language')
+    language: data.get('language'),
+    customVoice: (data.get('customVoice') || '').trim()
   };
 }
 
@@ -90,7 +109,6 @@ function setBusy(isBusy, label = 'Générer la vidéo') {
   generateBtn.disabled = isBusy;
   viralizeBtn.disabled = isBusy;
   exportVideoBtn.disabled = isBusy;
-  exportPosterBtn.disabled = isBusy;
   generateBtn.textContent = isBusy ? 'Création en cours…' : label;
 }
 
@@ -133,11 +151,22 @@ function renderProject(project, options = {}) {
   projectTitle.textContent = project.title;
   scorePill.textContent = `${project.optimization.score}/100`;
   scorePill.title = project.optimization.disclaimer;
+  const engine = project.textEngine || {};
+  if (engine.kind === 'llm') {
+    enginePill.textContent = `✍️ LLM · ${engine.model || engine.provider || 'local'}`;
+    enginePill.title = engine.note || 'Textes générés par un LLM local open source, puis validés.';
+    enginePill.classList.add('llm');
+  } else {
+    enginePill.textContent = '✍️ Templates';
+    enginePill.title = engine.note || 'Moteur de templates déterministe.';
+    enginePill.classList.remove('llm');
+  }
   document.documentElement.style.setProperty('--score', project.optimization.score);
   renderScenePager();
   renderPhoneScene(0);
   renderActiveTab();
   startAutoplay();
+  resetAiRenderPanel();
   if (options.toast) showToast(options.toast);
 }
 
@@ -499,6 +528,129 @@ function exportJson(project = currentProject) {
   showToast('Export JSON lancé');
 }
 
+// ---------- Rendu vidéo IA (pipeline open source serveur) ----------
+
+function resetAiRenderPanel() {
+  clearInterval(renderPollTimer);
+  renderPollTimer = null;
+  activeRenderJobId = null;
+  aiRenderPanel.hidden = true;
+  aiRenderResult.hidden = true;
+  aiRenderVideo.removeAttribute('src');
+  aiRenderDownload.removeAttribute('href');
+  renderMp4Btn.disabled = false;
+  renderMp4Btn.textContent = '🎬 Générer la vidéo IA (MP4)';
+}
+
+function setAiRenderProgress(stage, progress, note) {
+  aiRenderPanel.hidden = false;
+  aiRenderStage.textContent = stage;
+  aiRenderPercent.textContent = `${Math.round(progress * 100)}%`;
+  aiRenderBarFill.style.width = `${Math.round(progress * 100)}%`;
+  if (note) aiRenderNote.textContent = note;
+}
+
+// ---------- Affiches professionnelles (PNG) ----------
+
+async function downloadPoster(format) {
+  if (!currentProject) {
+    showToast('Générez d’abord un projet');
+    return;
+  }
+  const button = format === 'square' ? posterSquareBtn : posterStoryBtn;
+  const previous = button.textContent;
+  button.disabled = true;
+  button.textContent = '🖼️ Composition…';
+  try {
+    const result = await postJson('/api/poster-render', { project: currentProject, format });
+    const blob = await (await fetch(result.dataUrl)).blob();
+    downloadBlob(blob, result.filename);
+    showToast(`Affiche ${format === 'square' ? 'carrée' : 'Story'} téléchargée`);
+  } catch (error) {
+    showToast(error.message || 'Échec du rendu de l’affiche');
+  } finally {
+    button.disabled = false;
+    button.textContent = previous;
+  }
+}
+
+async function startAiRender() {
+  if (!currentProject) {
+    showToast('Générez d’abord un projet');
+    return;
+  }
+  const voiceText = (document.querySelector('#custom-voice')?.value || '').trim();
+  const isPosterMode = Boolean(voiceText);
+  renderMp4Btn.disabled = true;
+  renderMp4Btn.textContent = '⏳ Rendu en cours…';
+  setAiRenderProgress('Envoi du projet au moteur de rendu…', 0,
+    isPosterMode
+      ? 'Votre texte devient une vraie voix off posée sur l’affiche animée.'
+      : 'Voix off synthétisée scène par scène, puis montage animé et encodage H.264.');
+
+  try {
+    const job = await postJson('/api/video-render', {
+      project: currentProject,
+      mode: isPosterMode ? 'poster' : 'scenario',
+      voiceText
+    });
+    activeRenderJobId = job.id;
+    setAiRenderProgress(job.stage, job.progress, 'Le rendu tourne côté serveur. Vous pouvez continuer à consulter le projet.');
+    renderPollTimer = setInterval(pollAiRenderStatus, 1500);
+  } catch (error) {
+    showToast(error.message || 'Impossible de lancer le rendu');
+    renderMp4Btn.disabled = false;
+    renderMp4Btn.textContent = '🎬 Générer la vidéo IA (MP4)';
+  }
+}
+
+async function pollAiRenderStatus() {
+  if (!activeRenderJobId) return;
+  try {
+    const status = await fetch(`/api/video-status/${encodeURIComponent(activeRenderJobId)}`).then(r => {
+      if (!r.ok) throw new Error('Rendu introuvable');
+      return r.json();
+    });
+
+    if (status.status === 'error') {
+      clearInterval(renderPollTimer);
+      renderPollTimer = null;
+      setAiRenderProgress('Échec du rendu', 0, status.error || 'Erreur inconnue');
+      showToast(status.error || 'Le rendu a échoué');
+      renderMp4Btn.disabled = false;
+      renderMp4Btn.textContent = '🎬 Réessayer le rendu IA';
+      return;
+    }
+
+    setAiRenderProgress(status.stage, Math.max(status.progress, 0.02));
+
+    if (status.status === 'done' && status.video) {
+      clearInterval(renderPollTimer);
+      renderPollTimer = null;
+      aiRenderResult.hidden = false;
+      aiRenderVideo.src = status.video.url;
+      aiRenderDownload.href = status.video.url;
+      aiRenderDownload.setAttribute('download', status.video.filename);
+      const sizeMb = (status.video.sizeBytes / (1024 * 1024)).toFixed(1);
+      const engine = status.project?.render?.voiceEngine || 'voix synthétisée';
+      aiRenderMeta.innerHTML = `
+        <span>✅ ${status.video.durationSeconds}s · 720×1280 · 30 i/s · ${sizeMb} Mo</span>
+        <span>🗣️ ${escapeHtml(engine)}</span>
+      `;
+      setAiRenderProgress('Vidéo prête', 1, 'Vérifiez la voix et le rythme, puis téléchargez et publiez.');
+      renderMp4Btn.disabled = false;
+      renderMp4Btn.textContent = '🎬 Régénérer la vidéo IA';
+      showToast('Vidéo MP4 prête 🎉');
+    }
+  } catch (error) {
+    clearInterval(renderPollTimer);
+    renderPollTimer = null;
+    setAiRenderProgress('Rendu interrompu', 0, error.message);
+    renderMp4Btn.disabled = false;
+    renderMp4Btn.textContent = '🎬 Réessayer le rendu IA';
+  }
+}
+
 function playVoiceOver() {
   if (!currentProject) {
     showToast('Générez d’abord un projet');
@@ -637,96 +789,6 @@ function drawVideoFrame(ctx, canvas, project, elapsedSeconds) {
   ctx.fill();
 }
 
-function drawPosterFrame(ctx, canvas, project) {
-  const width = canvas.width;
-  const height = canvas.height;
-  const scene = project.script.scenes[0] || {};
-  const gold = '#ffbe0b';
-  const teal = '#20c997';
-  const bg = ctx.createLinearGradient(0, 0, width, height);
-  bg.addColorStop(0, '#06131d');
-  bg.addColorStop(0.58, '#0b2230');
-  bg.addColorStop(1, '#071018');
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, width, height);
-
-  ctx.fillStyle = 'rgba(255,190,11,0.12)';
-  ctx.beginPath();
-  ctx.arc(width - 40, 120, 280, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = 'rgba(32,201,151,0.12)';
-  ctx.beginPath();
-  ctx.arc(70, height - 160, 260, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = gold;
-  ctx.font = '900 38px Inter, Arial, sans-serif';
-  ctx.fillText('YALLAH SERVICES', 72, 92);
-  ctx.fillStyle = teal;
-  drawRoundRect(ctx, 72, 116, 132, 10, 5);
-  ctx.fill();
-
-  ctx.fillStyle = 'rgba(255,255,255,0.12)';
-  drawRoundRect(ctx, 72, 164, 360, 54, 27);
-  ctx.fill();
-  ctx.fillStyle = '#ffffff';
-  ctx.font = '800 24px Inter, Arial, sans-serif';
-  ctx.fillText(String(project.input?.service || 'SERVICE').toUpperCase(), 98, 181);
-
-  ctx.textBaseline = 'top';
-  ctx.font = '900 76px Inter, Arial, sans-serif';
-  const title = scene.onScreenText || project.title || 'Votre besoin, notre solution';
-  const titleLines = wrapText(ctx, title, width - 144).slice(0, 4);
-  let y = 290;
-  for (const line of titleLines) {
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(line, 72, y);
-    y += 86;
-  }
-
-  ctx.fillStyle = '#d9f7ef';
-  ctx.font = '600 34px Inter, Arial, sans-serif';
-  const bodyLines = wrapText(ctx, scene.caption || '', width - 144).slice(0, 3);
-  y += 28;
-  for (const line of bodyLines) {
-    ctx.fillText(line, 72, y);
-    y += 48;
-  }
-
-  const ctaY = height - 230;
-  ctx.fillStyle = teal;
-  drawRoundRect(ctx, 72, ctaY, width - 144, 86, 43);
-  ctx.fill();
-  ctx.fillStyle = '#062019';
-  ctx.font = '900 30px Inter, Arial, sans-serif';
-  ctx.fillText((project.cta || 'Contactez-nous sur WhatsApp').slice(0, 46), 104, ctaY + 27);
-
-  ctx.fillStyle = 'rgba(255,255,255,0.72)';
-  ctx.font = '600 24px Inter, Arial, sans-serif';
-  ctx.fillText(`WhatsApp : ${project.contact?.gsm || ''}`, 72, height - 108);
-  ctx.fillText(`${project.contact?.instagram?.handle || '@yallahservice'}  ·  ${project.contact?.tiktok?.handle || '@yallah.services.m'}`, 72, height - 68);
-}
-
-function exportPoster() {
-  if (!currentProject) {
-    showToast('Générez d’abord un projet');
-    return;
-  }
-  const canvas = document.createElement('canvas');
-  canvas.width = 1080;
-  canvas.height = 1350;
-  drawPosterFrame(canvas.getContext('2d'), canvas, currentProject);
-  canvas.toBlob(blob => {
-    if (!blob) {
-      showToast('Export affiche impossible');
-      return;
-    }
-    const filename = `${currentProject.title.toLowerCase().replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'yallah-affiche'}.png`;
-    downloadBlob(blob, filename);
-    showToast('Affiche PNG exportée');
-  }, 'image/png');
-}
-
 async function exportVideoMockup() {
   if (!currentProject) {
     showToast('Générez d’abord un projet');
@@ -742,6 +804,7 @@ async function exportVideoMockup() {
   canvas.width = 720;
   canvas.height = 1280;
   const ctx = canvas.getContext('2d');
+  const timeline = fallbackTimeline(currentProject);
   const stream = canvas.captureStream(30);
   const mimeType = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'].find(type => MediaRecorder.isTypeSupported(type)) || '';
   const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
@@ -762,7 +825,7 @@ async function exportVideoMockup() {
   await new Promise(resolve => {
     function frame(now) {
       const elapsed = Math.min(totalMs, now - startedAt);
-      drawVideoFrame(ctx, canvas, currentProject, elapsed / 1000);
+      drawStudioFrame(ctx, { project: currentProject, timeline, elapsedSeconds: elapsed / 1000, width: canvas.width, height: canvas.height });
       exportVideoBtn.textContent = `🎞️ Export ${Math.round((elapsed / totalMs) * 100)}%`;
       if (elapsed < totalMs) {
         requestAnimationFrame(frame);
@@ -785,11 +848,26 @@ async function exportVideoMockup() {
 }
 
 form.addEventListener('submit', generateProject);
+renderMp4Btn.addEventListener('click', startAiRender);
+posterStoryBtn.addEventListener('click', () => downloadPoster('story'));
+posterSquareBtn.addEventListener('click', () => downloadPoster('square'));
+
+// État du moteur texte (LLM local optionnel) affiché sous le formulaire.
+async function refreshLlmStatusLine() {
+  try {
+    const status = await fetch('/api/llm-status').then(r => r.json());
+    llmStatusLine.textContent = status.available
+      ? `✍️ Moteur texte : LLM local détecté — ${status.provider} (${status.model}). Hooks originaux à chaque génération.`
+      : '✍️ Moteur texte : templates déterministes (hors-ligne). Pour des hooks originaux, branchez un LLM local — voir docs/llm-local.md.';
+  } catch {
+    llmStatusLine.textContent = '✍️ Moteur texte : templates déterministes (hors-ligne).';
+  }
+}
+refreshLlmStatusLine();
 viralizeBtn.addEventListener('click', viralizeProject);
 playVoiceBtn.addEventListener('click', playVoiceOver);
 exportJsonBtn.addEventListener('click', () => exportJson());
 exportVideoBtn.addEventListener('click', exportVideoMockup);
-exportPosterBtn.addEventListener('click', exportPoster);
 saveProjectBtn.addEventListener('click', saveCurrentProject);
 clearLibraryBtn.addEventListener('click', () => {
   setLibrary([]);

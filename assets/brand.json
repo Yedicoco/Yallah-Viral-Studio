@@ -1,0 +1,29 @@
+{
+  "$comment": "Charte de marque Yallah Services — SOURCE UNIQUE de cohérence pour affiches, vidéos et textes. Modifiez ce fichier : tout le studio s'aligne automatiquement. Par défaut : palette et ton issus de la V1 du studio (votre design existant). À affiner avec vos publications réelles.",
+  "brandName": "YALLAH SERVICES",
+  "tagline": "Mise en relation de confiance",
+  "colors": {
+    "primary": "#20c997",
+    "accent": "#ffbe0b",
+    "dark": "#070a12",
+    "danger": "#ff5c7a",
+    "violet": "#845ef7"
+  },
+  "typography": {
+    "headings": "Inter ExtraBold",
+    "body": "Inter SemiBold",
+    "arabic": "Noto Sans Arabic"
+  },
+  "tone": {
+    "description": "Comment la marque parle, toutes plateformes",
+    "values": ["honnête", "proche et respectueux", "dynamique sans exagération"],
+    "interdits": ["promesses de résultats garantis", "faux chiffres", "urgence artificielle"]
+  },
+  "languages": ["fr", "darija", "ar"],
+  "visualIdentity": {
+    "description": "À compléter avec les codes réels des publications TikTok/Instagram",
+    "status": "defaults-v1",
+    "photoStyle": "photos réelles lumineuses, personnes souriantes, intérieurs marocains chaleureux",
+    "badgeStyle": "pilule dorée arrondie, texte foncé, majuscules"
+  }
+}

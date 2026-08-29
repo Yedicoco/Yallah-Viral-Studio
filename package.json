@@ -1,13 +1,15 @@
 {
   "name": "yallah-viral-studio",
-  "version": "1.0.0",
-  "description": "V1 prototype for creating short commercial TikTok/Reels content for Yallah Services.",
+  "version": "2.2.0",
+  "description": "Studio de pré-production + génération vidéo IA open source (MP4 H.264, voix off TTS, musique) pour TikTok/Reels — Yallah Services.",
   "type": "module",
   "private": true,
   "scripts": {
+    "setup": "node scripts/setup-fonts.mjs",
     "dev": "node server.mjs",
     "start": "node server.mjs",
-    "check": "node --check server.mjs && node --check lib/generator.mjs && node --check src/main.js"
+    "check": "node --check server.mjs && node --check lib/generator.mjs && node --check lib/audio.mjs && node --check lib/tts.mjs && node --check lib/frame-draw.mjs && node --check lib/video-jobs.mjs && node --check src/main.js",
+    "stub:llm": "node scripts/llm-stub.mjs"
   },
   "keywords": [
     "tiktok",
@@ -17,5 +19,16 @@
     "ai-content"
   ],
   "author": "Yallah Services",
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "@napi-rs/canvas": "^1.0.8"
+  },
+  "devDependencies": {
+    "@fontsource/inter": "^5.3.0",
+    "@fontsource/noto-emoji": "^5.3.0",
+    "@fontsource/noto-sans-arabic": "^5.3.0",
+    "wawoff2": "^2.0.1"
+  },
+  "optionalDependencies": {}
 }

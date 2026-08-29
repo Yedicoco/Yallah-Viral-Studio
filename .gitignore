@@ -1,0 +1,4 @@
+node_modules/
+assets/models/
+__pycache__/
+*.log

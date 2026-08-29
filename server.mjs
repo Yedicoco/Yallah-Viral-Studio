@@ -3,6 +3,10 @@ import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { generateStudioProject, improveStudioProject, YALLAH_CONTACT } from './lib/generator.mjs';
+import { createVideoJob, getVideoJob, getVideoJobFilePath } from './lib/video-jobs.mjs';
+import { listAvailableVoices } from './lib/tts.mjs';
+import { generateCreativeLayer, detectLlm, getCachedLlmStatus } from './lib/llm.mjs';
+import { renderPoster, posterFilename } from './lib/posters.mjs';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const port = Number(process.env.PORT || 4173);
@@ -19,7 +23,11 @@ const mimeTypes = new Map([
   ['.jpg', 'image/jpeg'],
   ['.jpeg', 'image/jpeg'],
   ['.webp', 'image/webp'],
-  ['.ico', 'image/x-icon']
+  ['.ico', 'image/x-icon'],
+  ['.mp4', 'video/mp4'],
+  ['.ttf', 'font/ttf'],
+  ['.wav', 'audio/wav'],
+  ['.md', 'text/markdown; charset=utf-8']
 ]);
 
 function sendJson(response, statusCode, payload) {
@@ -91,19 +99,156 @@ async function serveStatic(request, response) {
 const server = createServer(async (request, response) => {
   try {
     if (request.method === 'GET' && request.url?.startsWith('/api/health')) {
-      sendJson(response, 200, { ok: true, app: 'Yallah Viral Studio', contact: YALLAH_CONTACT });
+      sendJson(response, 200, {
+        ok: true,
+        app: 'Yallah Viral Studio',
+        contact: YALLAH_CONTACT,
+        videoRender: {
+          engine: 'FFmpeg (libx264/AAC) + @napi-rs/canvas — open source',
+          resolution: '720x1280 · 30 fps',
+          voices: listAvailableVoices()
+        },
+        textEngine: getCachedLlmStatus().available
+          ? { kind: 'llm', provider: getCachedLlmStatus().provider, model: getCachedLlmStatus().model }
+          : { kind: 'templates' }
+      });
       return;
     }
 
     if (request.method === 'POST' && request.url?.startsWith('/api/generate')) {
       const input = await readJsonBody(request);
-      sendJson(response, 200, generateStudioProject(input));
+      const creative = await generateCreativeLayer(input);
+      const project = generateStudioProject(input, {
+        creative: creative?.creative,
+        textEngine: creative
+          ? { kind: 'llm', provider: creative.provider, model: creative.model, note: 'Hooks et script générés par un LLM local open source, puis validés (coordonnées officielles imposées).' }
+          : undefined
+      });
+      sendJson(response, 200, project);
       return;
     }
 
     if (request.method === 'POST' && request.url?.startsWith('/api/viralize')) {
       const input = await readJsonBody(request);
-      sendJson(response, 200, improveStudioProject(input.project || input));
+      const previous = input.project || input;
+      const creative = await generateCreativeLayer(previous.input || previous, {
+        viralBoost: true,
+        previousHooks: Array.isArray(previous.hooks) ? previous.hooks.slice(0, 5) : []
+      });
+      sendJson(response, 200, improveStudioProject(previous, {
+        creative: creative?.creative,
+        textEngine: creative
+          ? { kind: 'llm', provider: creative.provider, model: creative.model, note: 'Version virale réécrite par un LLM local open source, puis validée.' }
+          : undefined
+      }));
+      return;
+    }
+
+    // ---------- rendu vidéo MP4 (pipeline open source serveur) ----------
+
+    if (request.method === 'POST' && request.url?.startsWith('/api/video-render')) {
+      const body = await readJsonBody(request);
+      const project = body.project || body;
+      const mode = body.mode === 'poster' ? 'poster' : 'scenario';
+      const voiceText = String(body.voiceText || '').trim();
+      if (mode === 'scenario' && !project?.script?.scenes?.length) {
+        sendJson(response, 400, { error: 'Projet invalide : aucune scène à rendre' });
+        return;
+      }
+      if (mode === 'poster' && !voiceText && !project?.script?.voiceOver) {
+        sendJson(response, 400, { error: 'Fournissez un texte de voix off pour la vidéo d\u2019affiche' });
+        return;
+      }
+      try {
+        sendJson(response, 200, createVideoJob(project, { mode, voiceText }));
+      } catch (error) {
+        sendJson(response, error.statusCode || 500, { error: error.message });
+      }
+      return;
+    }
+
+    if (request.method === 'POST' && request.url?.startsWith('/api/poster-render')) {
+      const body = await readJsonBody(request);
+      const project = body.project || body;
+      if (!project?.script?.scenes?.length) {
+        sendJson(response, 400, { error: 'Projet invalide' });
+        return;
+      }
+      try {
+        const format = body.format === 'square' ? 'square' : 'story';
+        const canvas = await renderPoster(project, { format });
+        const png = canvas.toBuffer('image/png');
+        sendJson(response, 200, {
+          format,
+          filename: posterFilename(project, format),
+          sizeBytes: png.length,
+          dataUrl: `data:image/png;base64,${png.toString('base64')}`
+        });
+      } catch (error) {
+        console.error(error);
+        sendJson(response, 500, { error: error.message || 'Échec du rendu de l\u2019affiche' });
+      }
+      return;
+    }
+
+    if (request.method === 'GET' && request.url?.startsWith('/api/video-status/')) {
+      const jobId = decodeURIComponent(request.url.slice('/api/video-status/'.length).split('?')[0]);
+      const job = getVideoJob(jobId);
+      if (!job) {
+        sendJson(response, 404, { error: 'Rendu introuvable ou expiré' });
+        return;
+      }
+      sendJson(response, 200, job);
+      return;
+    }
+
+    if (request.method === 'GET' && request.url?.startsWith('/api/video-file/')) {
+      const jobId = decodeURIComponent(request.url.slice('/api/video-file/'.length).split('?')[0]);
+      const job = getVideoJob(jobId);
+      const filePath = getVideoJobFilePath(jobId, 'video');
+      if (!job || !filePath) {
+        sendJson(response, 404, { error: 'Vidéo introuvable ou rendu pas encore terminé' });
+        return;
+      }
+      try {
+        const file = await readFile(filePath);
+        response.writeHead(200, {
+          'Content-Type': 'video/mp4',
+          'Content-Length': file.length,
+          'Content-Disposition': `attachment; filename="${job.filename}"; filename*=UTF-8''${encodeURIComponent(job.filename)}`,
+          'Cache-Control': 'no-store'
+        });
+        response.end(file);
+      } catch {
+        sendJson(response, 410, { error: 'Fichier de rendu expiré' });
+      }
+      return;
+    }
+
+    if (request.method === 'GET' && request.url?.startsWith('/api/video-poster/')) {
+      const jobId = decodeURIComponent(request.url.slice('/api/video-poster/'.length).split('?')[0]);
+      const filePath = getVideoJobFilePath(jobId, 'poster');
+      if (!filePath) {
+        sendJson(response, 404, { error: 'Affiche introuvable' });
+        return;
+      }
+      try {
+        const file = await readFile(filePath);
+        response.writeHead(200, { 'Content-Type': 'image/jpeg', 'Content-Length': file.length, 'Cache-Control': 'no-store' });
+        response.end(file);
+      } catch {
+        sendJson(response, 410, { error: 'Affiche expirée' });
+      }
+      return;
+    }
+
+    if (request.method === 'GET' && request.url?.startsWith('/api/llm-status')) {
+      sendJson(response, 200, await detectLlm({ force: true }));
+      return;
+    }
+
+    if (request.method === 'GET' && request.url?.startsWith('/api/voices')) {
+      sendJson(response, 200, { voices: listAvailableVoices() });
       return;
     }
 
@@ -121,4 +266,10 @@ const server = createServer(async (request, response) => {
 
 server.listen(port, host, () => {
   console.log(`Yallah Viral Studio running on http://${host}:${port}`);
+  // Préchauffe la détection du LLM local (Ollama / LM Studio) sans bloquer.
+  detectLlm().then(status => {
+    console.log(status.available
+      ? `[llm] moteur texte : ${status.provider} (${status.model})`
+      : '[llm] aucun LLM local détecté — moteur templates (voir docs/llm-local.md pour brancher)');
+  });
 });
