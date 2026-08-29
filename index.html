@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Yallah Viral Studio</title>
+    <meta
+      name="description"
+      content="Prototype V1 pour générer des scripts, scènes, voix off, sous-titres et captions TikTok/Reels pour Yallah Services."
+    />
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <header class="hero">
+        <nav class="topbar" aria-label="Navigation principale">
+          <a class="brand" href="#app" aria-label="Yallah Viral Studio accueil">
+            <span class="brand-mark">Y</span>
+            <span>
+              <strong>Yallah Viral Studio</strong>
+              <small>Short ads for TikTok · Reels · Shorts</small>
+            </span>
+          </a>
+          <div class="nav-actions">
+            <a href="#library" class="ghost-link">Bibliothèque</a>
+            <a href="#generator" class="ghost-link">Créer une vidéo</a>
+          </div>
+        </nav>
+
+        <section class="hero-grid" id="app">
+          <div class="hero-copy">
+            <p class="eyebrow">V1 simple, commerciale et rapide</p>
+            <h1>Transformez une idée Yallah Services en vidéo verticale prête à produire.</h1>
+            <p class="hero-text">
+              Générez hooks, script, storyboard 9:16, voix off, sous-titres dynamiques,
+              caption, hashtags et CTA WhatsApp — sans promettre artificiellement le viral.
+            </p>
+            <div class="hero-badges" aria-label="Fonctionnalités clés">
+              <span>🎯 Hooks TikTok</span>
+              <span>🗣️ Voix FR/Darija/AR</span>
+              <span>📲 CTA WhatsApp</span>
+              <span>🔥 Rendre plus viral</span>
+            </div>
+          </div>
+
+          <div class="promise-card">
+            <span class="promise-icon">🧠</span>
+            <h2>Promesse responsable</h2>
+            <p>
+              Le studio optimise les leviers qui augmentent les chances de performance :
+              rétention, hook, rythme, clarté, engagement et CTA.
+            </p>
+            <strong>Pas de garantie de viralité.</strong>
+          </div>
+        </section>
+      </header>
+
+      <main class="workspace">
+        <section class="panel creator-panel" id="generator" aria-labelledby="creator-title">
+          <div class="panel-heading">
+            <p class="eyebrow">Écran principal</p>
+            <h2 id="creator-title">Que voulez-vous promouvoir ?</h2>
+          </div>
+
+          <form id="studio-form" class="studio-form">
+            <label class="field span-2" for="objective">
+              <span>Objectif</span>
+              <textarea
+                id="objective"
+                name="objective"
+                rows="4"
+                placeholder="Je veux trouver une femme de ménage à Casablanca"
+              >Je veux trouver une femme de ménage à Casablanca</textarea>
+            </label>
+
+            <div class="field">
+              <span>Ville</span>
+              <input id="city" name="city" type="text" value="Casablanca" autocomplete="address-level2" />
+            </div>
+
+            <div class="field">
+              <span>WhatsApp CTA</span>
+              <input id="whatsapp" name="whatsapp" type="text" value="+212 6 00 00 00 00" inputmode="tel" />
+            </div>
+
+            <fieldset class="choice-group span-2">
+              <legend>Service</legend>
+              <div class="choice-grid service-grid">
+                <label><input type="radio" name="service" value="menage" checked /> <span>🧹 Femme de ménage</span></label>
+                <label><input type="radio" name="service" value="nounou" /> <span>👶 Nounou</span></label>
+                <label><input type="radio" name="service" value="auxiliaire" /> <span>🤝 Auxiliaire de vie</span></label>
+                <label><input type="radio" name="service" value="cuisiniere" /> <span>🍲 Cuisinière</span></label>
+                <label><input type="radio" name="service" value="airbnb" /> <span>🏠 Grand ménage Airbnb</span></label>
+                <label><input type="radio" name="service" value="emploi" /> <span>💼 Offre d'emploi</span></label>
+                <label><input type="radio" name="service" value="yallah" /> <span>⚡ Services Yallah Services</span></label>
+                <label><input type="radio" name="service" value="autre" /> <span>✨ Autre</span></label>
+              </div>
+            </fieldset>
+
+            <fieldset class="choice-group">
+              <legend>Durée</legend>
+              <div class="segmented">
+                <label><input type="radio" name="duration" value="15" /> <span>15s</span></label>
+                <label><input type="radio" name="duration" value="30" checked /> <span>30s</span></label>
+                <label><input type="radio" name="duration" value="60" /> <span>60s</span></label>
+              </div>
+            </fieldset>
+
+            <fieldset class="choice-group">
+              <legend>Langue</legend>
+              <div class="segmented">
+                <label><input type="radio" name="language" value="fr" checked /> <span>🇫🇷 Français</span></label>
+                <label><input type="radio" name="language" value="darija" /> <span>🇲🇦 Darija</span></label>
+                <label><input type="radio" name="language" value="ar" /> <span>🇦🇪 Arabe</span></label>
+              </div>
+            </fieldset>
+
+            <fieldset class="choice-group span-2">
+              <legend>Style</legend>
+              <div class="choice-grid style-grid">
+                <label><input type="radio" name="style" value="viral" checked /> <span>🔥 Viral</span></label>
+                <label><input type="radio" name="style" value="luxe" /> <span>💎 Luxe</span></label>
+                <label><input type="radio" name="style" value="commercial" /> <span>🎯 Commercial</span></label>
+                <label><input type="radio" name="style" value="emotion" /> <span>❤️ Émotion</span></label>
+                <label><input type="radio" name="style" value="urgent" /> <span>⚡ Urgent</span></label>
+                <label><input type="radio" name="style" value="storytelling" /> <span>🎬 Storytelling</span></label>
+              </div>
+            </fieldset>
+
+            <div class="form-actions span-2">
+              <button type="submit" class="primary-btn" id="generate-btn">Générer la vidéo</button>
+              <button type="button" class="hot-btn" id="viralize-btn">🔥 Rendre plus viral</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="results-layout" aria-live="polite">
+          <article class="phone-panel panel">
+            <div class="panel-heading compact-heading">
+              <div>
+                <p class="eyebrow">Preview 9:16</p>
+                <h2 id="project-title">Projet non généré</h2>
+              </div>
+              <span class="score-pill" id="score-pill">--</span>
+            </div>
+
+            <div class="phone-frame" id="phone-frame">
+              <div class="phone-notch"></div>
+              <div class="phone-scene" id="phone-scene">
+                <div class="phone-watermark">YALLAH SERVICES</div>
+                <div class="scene-emoji" id="scene-emoji">🎬</div>
+                <h3 id="phone-title">Votre vidéo apparaîtra ici</h3>
+                <p id="phone-caption">Remplissez le brief puis générez une proposition.</p>
+                <div class="phone-cta" id="phone-cta">WhatsApp CTA</div>
+                <div class="phone-progress"><span id="phone-progress-bar"></span></div>
+              </div>
+            </div>
+
+            <div class="scene-pager" id="scene-pager" aria-label="Navigation des scènes"></div>
+
+            <div class="export-actions">
+              <button type="button" class="secondary-btn" id="play-voice-btn">▶️ Écouter la voix off</button>
+              <button type="button" class="secondary-btn" id="export-json-btn">⬇️ Export JSON</button>
+              <button type="button" class="secondary-btn" id="export-video-btn">🎞️ Export WebM maquette</button>
+              <button type="button" class="secondary-btn" id="save-project-btn">💾 Sauver</button>
+            </div>
+            <p class="microcopy" id="export-note">
+              Export WebM : maquette visuelle générée dans le navigateur. La voix off reste disponible en lecture séparée.
+            </p>
+          </article>
+
+          <article class="panel output-panel">
+            <div class="tabs" role="tablist" aria-label="Détails générés">
+              <button class="tab active" type="button" data-tab="hooks" role="tab" aria-selected="true">Hooks</button>
+              <button class="tab" type="button" data-tab="script" role="tab">Script</button>
+              <button class="tab" type="button" data-tab="subtitles" role="tab">Sous-titres</button>
+              <button class="tab" type="button" data-tab="caption" role="tab">Caption</button>
+              <button class="tab" type="button" data-tab="optimize" role="tab">Optimisation</button>
+            </div>
+            <div id="tab-content" class="tab-content empty-state">
+              <span>✨</span>
+              <h3>Prêt à créer</h3>
+              <p>Le générateur produira ici hooks, script, scènes, voix off, sous-titres, hashtags et checklist TikTok/Reels.</p>
+            </div>
+          </article>
+        </section>
+
+        <section class="panel library-panel" id="library" aria-labelledby="library-title">
+          <div class="panel-heading compact-heading">
+            <div>
+              <p class="eyebrow">Bibliothèque</p>
+              <h2 id="library-title">Vidéos créées</h2>
+            </div>
+            <button type="button" class="ghost-button" id="clear-library-btn">Vider</button>
+          </div>
+          <div id="library-list" class="library-list"></div>
+        </section>
+      </main>
+    </div>
+
+    <template id="copy-button-template">
+      <button type="button" class="copy-btn">Copier</button>
+    </template>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

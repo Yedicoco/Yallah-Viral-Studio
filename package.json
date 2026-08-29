@@ -1,0 +1,21 @@
+{
+  "name": "yallah-viral-studio",
+  "version": "1.0.0",
+  "description": "V1 prototype for creating short commercial TikTok/Reels content for Yallah Services.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "node server.mjs",
+    "start": "node server.mjs",
+    "check": "node --check server.mjs && node --check lib/generator.mjs && node --check src/main.js"
+  },
+  "keywords": [
+    "tiktok",
+    "reels",
+    "video",
+    "yallah-services",
+    "ai-content"
+  ],
+  "author": "Yallah Services",
+  "license": "UNLICENSED"
+}
