@@ -16,6 +16,7 @@ const tabs = document.querySelectorAll('.tab');
 const playVoiceBtn = document.querySelector('#play-voice-btn');
 const exportJsonBtn = document.querySelector('#export-json-btn');
 const exportVideoBtn = document.querySelector('#export-video-btn');
+const exportPosterBtn = document.querySelector('#export-poster-btn');
 const saveProjectBtn = document.querySelector('#save-project-btn');
 const clearLibraryBtn = document.querySelector('#clear-library-btn');
 const libraryList = document.querySelector('#library-list');
@@ -89,6 +90,7 @@ function setBusy(isBusy, label = 'Générer la vidéo') {
   generateBtn.disabled = isBusy;
   viralizeBtn.disabled = isBusy;
   exportVideoBtn.disabled = isBusy;
+  exportPosterBtn.disabled = isBusy;
   generateBtn.textContent = isBusy ? 'Création en cours…' : label;
 }
 
@@ -558,8 +560,8 @@ function drawVideoFrame(ctx, canvas, project, elapsedSeconds) {
   const height = canvas.height;
   const styleColor = project.style.color || '#20c997';
   const gradient = ctx.createLinearGradient(0, 0, width, height);
-  gradient.addColorStop(0, index % 2 ? '#ff4d4f' : styleColor);
-  gradient.addColorStop(0.56, '#07101c');
+  gradient.addColorStop(0, '#06131d');
+  gradient.addColorStop(0.52, '#0b2230');
   gradient.addColorStop(1, index % 2 ? '#20c997' : '#ffbe0b');
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, width, height);
@@ -572,10 +574,13 @@ function drawVideoFrame(ctx, canvas, project, elapsedSeconds) {
   ctx.fillStyle = 'rgba(0,0,0,0.34)';
   ctx.fillRect(0, height * 0.58, width, height * 0.42);
 
-  ctx.fillStyle = 'rgba(255,255,255,0.78)';
+  ctx.fillStyle = '#ffbe0b';
   ctx.font = '900 26px Inter, Arial, sans-serif';
   ctx.letterSpacing = '3px';
   ctx.fillText('YALLAH SERVICES', 58, 100);
+  ctx.fillStyle = '#20c997';
+  drawRoundRect(ctx, 58, 126, 92, 8, 4);
+  ctx.fill();
 
   const handles = project.socialLine
     ? `${project.contact?.tiktok?.handle || ''} · ${project.contact?.instagram?.handle || ''}`
@@ -587,26 +592,33 @@ function drawVideoFrame(ctx, canvas, project, elapsedSeconds) {
     ctx.textAlign = 'left';
   }
 
-  ctx.font = '110px Inter, Arial, sans-serif';
-  ctx.fillText(scene.emoji || '🎬', 58, 245);
-
+  ctx.fillStyle = 'rgba(255,255,255,0.10)';
+  drawRoundRect(ctx, 58, 178, 604, 56, 28);
+  ctx.fill();
   ctx.fillStyle = '#ffffff';
-  ctx.textBaseline = 'top';
-  ctx.font = '900 58px Inter, Arial, sans-serif';
-  const titleLines = wrapText(ctx, scene.onScreenText, width - 116).slice(0, 5);
-  let y = height - 475;
-  for (const line of titleLines) {
-    ctx.fillText(line, 58, y);
-    y += 66;
-  }
+  ctx.font = '800 25px Inter, Arial, sans-serif';
+  ctx.fillText(`SCÈNE ${String(index + 1).padStart(2, '0')}  ·  ${String(project.input?.service || 'SERVICE').toUpperCase()}`, 84, 195);
 
-  ctx.fillStyle = 'rgba(255,255,255,0.88)';
-  ctx.font = '700 32px Inter, Arial, sans-serif';
-  const captionLines = wrapText(ctx, scene.caption, width - 116).slice(0, 3);
-  y += 12;
+  ctx.textBaseline = 'top';
+  ctx.font = '900 56px Inter, Arial, sans-serif';
+  const titleLines = wrapText(ctx, scene.onScreenText, width - 116).slice(0, 4);
+  let y = height - 500;
+  ctx.shadowColor = 'rgba(0,0,0,0.32)';
+  ctx.shadowBlur = 14;
+  for (const line of titleLines) {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(line, 58, y);
+    y += 64;
+  }
+  ctx.shadowBlur = 0;
+
+  ctx.fillStyle = '#d9f7ef';
+  ctx.font = '700 30px Inter, Arial, sans-serif';
+  const captionLines = wrapText(ctx, scene.caption, width - 116).slice(0, 2);
+  y += 16;
   for (const line of captionLines) {
     ctx.fillText(line, 58, y);
-    y += 42;
+    y += 40;
   }
 
   ctx.fillStyle = 'rgba(0,0,0,0.58)';
@@ -623,6 +635,96 @@ function drawVideoFrame(ctx, canvas, project, elapsedSeconds) {
   const progress = Math.min(1, elapsedSeconds / project.script.duration);
   drawRoundRect(ctx, 58, height - 44, (width - 116) * progress, 10, 5);
   ctx.fill();
+}
+
+function drawPosterFrame(ctx, canvas, project) {
+  const width = canvas.width;
+  const height = canvas.height;
+  const scene = project.script.scenes[0] || {};
+  const gold = '#ffbe0b';
+  const teal = '#20c997';
+  const bg = ctx.createLinearGradient(0, 0, width, height);
+  bg.addColorStop(0, '#06131d');
+  bg.addColorStop(0.58, '#0b2230');
+  bg.addColorStop(1, '#071018');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.fillStyle = 'rgba(255,190,11,0.12)';
+  ctx.beginPath();
+  ctx.arc(width - 40, 120, 280, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(32,201,151,0.12)';
+  ctx.beginPath();
+  ctx.arc(70, height - 160, 260, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = gold;
+  ctx.font = '900 38px Inter, Arial, sans-serif';
+  ctx.fillText('YALLAH SERVICES', 72, 92);
+  ctx.fillStyle = teal;
+  drawRoundRect(ctx, 72, 116, 132, 10, 5);
+  ctx.fill();
+
+  ctx.fillStyle = 'rgba(255,255,255,0.12)';
+  drawRoundRect(ctx, 72, 164, 360, 54, 27);
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '800 24px Inter, Arial, sans-serif';
+  ctx.fillText(String(project.input?.service || 'SERVICE').toUpperCase(), 98, 181);
+
+  ctx.textBaseline = 'top';
+  ctx.font = '900 76px Inter, Arial, sans-serif';
+  const title = scene.onScreenText || project.title || 'Votre besoin, notre solution';
+  const titleLines = wrapText(ctx, title, width - 144).slice(0, 4);
+  let y = 290;
+  for (const line of titleLines) {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(line, 72, y);
+    y += 86;
+  }
+
+  ctx.fillStyle = '#d9f7ef';
+  ctx.font = '600 34px Inter, Arial, sans-serif';
+  const bodyLines = wrapText(ctx, scene.caption || '', width - 144).slice(0, 3);
+  y += 28;
+  for (const line of bodyLines) {
+    ctx.fillText(line, 72, y);
+    y += 48;
+  }
+
+  const ctaY = height - 230;
+  ctx.fillStyle = teal;
+  drawRoundRect(ctx, 72, ctaY, width - 144, 86, 43);
+  ctx.fill();
+  ctx.fillStyle = '#062019';
+  ctx.font = '900 30px Inter, Arial, sans-serif';
+  ctx.fillText((project.cta || 'Contactez-nous sur WhatsApp').slice(0, 46), 104, ctaY + 27);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.72)';
+  ctx.font = '600 24px Inter, Arial, sans-serif';
+  ctx.fillText(`WhatsApp : ${project.contact?.gsm || ''}`, 72, height - 108);
+  ctx.fillText(`${project.contact?.instagram?.handle || '@yallahservice'}  ·  ${project.contact?.tiktok?.handle || '@yallah.services.m'}`, 72, height - 68);
+}
+
+function exportPoster() {
+  if (!currentProject) {
+    showToast('Générez d’abord un projet');
+    return;
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = 1080;
+  canvas.height = 1350;
+  drawPosterFrame(canvas.getContext('2d'), canvas, currentProject);
+  canvas.toBlob(blob => {
+    if (!blob) {
+      showToast('Export affiche impossible');
+      return;
+    }
+    const filename = `${currentProject.title.toLowerCase().replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'yallah-affiche'}.png`;
+    downloadBlob(blob, filename);
+    showToast('Affiche PNG exportée');
+  }, 'image/png');
 }
 
 async function exportVideoMockup() {
@@ -687,6 +789,7 @@ viralizeBtn.addEventListener('click', viralizeProject);
 playVoiceBtn.addEventListener('click', playVoiceOver);
 exportJsonBtn.addEventListener('click', () => exportJson());
 exportVideoBtn.addEventListener('click', exportVideoMockup);
+exportPosterBtn.addEventListener('click', exportPoster);
 saveProjectBtn.addEventListener('click', saveCurrentProject);
 clearLibraryBtn.addEventListener('click', () => {
   setLibrary([]);
