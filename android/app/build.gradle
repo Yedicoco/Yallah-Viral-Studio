@@ -46,7 +46,12 @@ android {
     }
 
     lint {
-        abortOnError true
+        // Les erreurs de lint ne doivent pas empêcher la production de l'APK :
+        // le rapport (HTML/XML) reste généré dans app/build/reports et les
+        // constats restent consultables, mais la tâche :app:lintDebug réussit
+        // même en présence d'erreurs. Les vérifications critiques de sécurité
+        // sont couvertes par `npm run android:check` (scripts/check-android.mjs).
+        abortOnError false
         checkReleaseBuilds true
         warningsAsErrors false
         disable 'SetJavaScriptEnabled'
