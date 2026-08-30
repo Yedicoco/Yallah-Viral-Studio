@@ -1,0 +1,96 @@
+name: Android APK
+
+on:
+  push:
+    paths:
+      - 'android/**'
+      - 'src/**'
+      - 'scripts/build-android.mjs'
+      - 'scripts/check-android.mjs'
+      - 'scripts/generate-android-icons.mjs'
+      - 'package.json'
+      - '.github/workflows/android-apk.yml'
+  pull_request:
+    paths:
+      - 'android/**'
+      - 'src/**'
+      - 'scripts/build-android.mjs'
+      - 'scripts/check-android.mjs'
+      - 'scripts/generate-android-icons.mjs'
+      - 'package.json'
+      - '.github/workflows/android-apk.yml'
+  workflow_dispatch:
+    inputs:
+      server_url:
+        description: 'URL HTTPS du serveur Yallah (facultative : configurable dans l’APK)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  YVS_ANDROID_SERVER_URL: ${{ inputs.server_url || vars.YVS_ANDROID_SERVER_URL || '' }}
+
+jobs:
+  build-debug-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v4
+
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android 36 platform
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager 'platform-tools' 'platforms;android-36' 'build-tools;36.0.0'
+
+      - name: Configure Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Check Android security configuration
+        run: npm run android:check
+
+      - name: Run Android lint
+        working-directory: android
+        run: ./gradlew --no-daemon --stacktrace :app:lintDebug
+
+      - name: Build installable debug APK
+        run: npm run android:build
+
+      - name: Inspect APK manifest
+        shell: bash
+        run: |
+          APK="$(find .artifacts -name '*-debug.apk' -print -quit)"
+          test -n "$APK"
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$APK" | tee .artifacts/apk-badging.txt
+          grep -q "package: name='ma.yallahservices.viralstudio.debug'" .artifacts/apk-badging.txt
+          grep -q "targetSdkVersion:'36'" .artifacts/apk-badging.txt
+
+      - name: Upload installable APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Yallah-Viral-Studio-Android-${{ github.sha }}
+          path: |
+            .artifacts/*-debug.apk
+            .artifacts/*-debug.apk.sha256
+            .artifacts/apk-badging.txt
+          if-no-files-found: error
+          retention-days: 14
