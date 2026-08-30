@@ -1,15 +1,28 @@
 {
   "name": "yallah-viral-studio",
-  "version": "2.2.0",
-  "description": "Studio de pré-production + génération vidéo IA open source (MP4 H.264, voix off TTS, musique) pour TikTok/Reels — Yallah Services.",
+  "version": "2.4.0",
+  "description": "Studio sécurisé de création automatique d’affiches et vidéos IA open source à partir d’une demande libre (MP4 H.264/AAC, voix, musique, sous-titres et libSQL).",
   "type": "module",
   "private": true,
   "scripts": {
-    "setup": "node scripts/setup-fonts.mjs",
+    "setup": "npm run setup:fonts && npm run setup:voices",
     "dev": "node server.mjs",
     "start": "node server.mjs",
-    "check": "node --check server.mjs && node --check lib/generator.mjs && node --check lib/audio.mjs && node --check lib/tts.mjs && node --check lib/frame-draw.mjs && node --check lib/video-jobs.mjs && node --check src/main.js",
-    "stub:llm": "node scripts/llm-stub.mjs"
+    "check": "node --check server.mjs && node --check lib/*.mjs && node --check scripts/*.mjs && node --check src/main.js",
+    "stub:llm": "node scripts/llm-stub.mjs",
+    "setup:fonts": "node scripts/setup-fonts.mjs",
+    "setup:voices": "node scripts/setup-voices.mjs",
+    "test": "node --test --test-concurrency=1 tests/unit/*.test.mjs tests/integration/*.test.mjs",
+    "test:unit": "node --test tests/unit/*.test.mjs",
+    "test:integration": "node --test --test-concurrency=1 tests/integration/*.test.mjs",
+    "test:e2e": "node scripts/smoke-e2e.mjs",
+    "verify": "npm run check && npm test",
+    "test:all": "npm run verify && npm run test:e2e",
+    "test:coverage": "node --test --experimental-test-coverage --test-concurrency=1 tests/unit/*.test.mjs tests/integration/*.test.mjs",
+    "android:check": "node scripts/check-android.mjs",
+    "android:icons": "node scripts/generate-android-icons.mjs",
+    "android:build": "node scripts/build-android.mjs",
+    "android:build:release": "node scripts/build-android.mjs --release"
   },
   "keywords": [
     "tiktok",
@@ -22,6 +35,7 @@
   "license": "UNLICENSED",
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "@libsql/client": "^0.17.4",
     "@napi-rs/canvas": "^1.0.8"
   },
   "devDependencies": {
@@ -29,6 +43,5 @@
     "@fontsource/noto-emoji": "^5.3.0",
     "@fontsource/noto-sans-arabic": "^5.3.0",
     "wawoff2": "^2.0.1"
-  },
-  "optionalDependencies": {}
+  }
 }

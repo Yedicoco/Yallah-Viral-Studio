@@ -1,4 +1,13 @@
 node_modules/
+.venv/
+.env
+.env.*
+!.env.example
+data/
+.artifacts/
 assets/models/
 __pycache__/
 *.log
+*.db
+*.db-shm
+*.db-wal

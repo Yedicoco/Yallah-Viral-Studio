@@ -1,0 +1,60 @@
+plugins {
+    id 'com.android.application'
+}
+
+static String escapeBuildConfig(String value) {
+    return value.replace('\\', '\\\\').replace('"', '\\"')
+}
+
+def configuredServerUrl = System.getenv('YVS_ANDROID_SERVER_URL') ?: ''
+
+android {
+    namespace 'ma.yallahservices.viralstudio'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId 'ma.yallahservices.viralstudio'
+        minSdk 24
+        targetSdk 36
+        versionCode 20400
+        versionName '2.4.0'
+        buildConfigField 'String', 'DEFAULT_SERVER_URL', '"' + escapeBuildConfig(configuredServerUrl) + '"'
+        resValue 'string', 'app_version', '2.4.0'
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    buildTypes {
+        debug {
+            applicationIdSuffix '.debug'
+            versionNameSuffix '-debug'
+            resValue 'string', 'app_name', 'Yallah Studio (Test)'
+        }
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            resValue 'string', 'app_name', 'Yallah Viral Studio'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
+        abortOnError true
+        checkReleaseBuilds true
+        warningsAsErrors false
+        disable 'SetJavaScriptEnabled'
+    }
+
+    packaging {
+        resources {
+            excludes += ['META-INF/DEPENDENCIES', 'META-INF/LICENSE*', 'META-INF/NOTICE*']
+        }
+    }
+}

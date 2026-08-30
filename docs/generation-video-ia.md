@@ -29,31 +29,44 @@ contient le MP4.
 | FFmpeg via `@ffmpeg-installer` (npm) | binaire statique précompilé, pas de compilation, pas d'apt |
 | `@napi-rs/canvas` | canvas natif précompilé (pas de Cairo à compiler), API identique au DOM |
 | Musique **procédurale** en JS | zéro échantillon téléchargé, zéro licence, boucles propres par style ; le brief musical du projet reste la référence pour une vraie production |
-| TTS à deux étages | espeak-ng toujours disponible (embarqué) ; Piper (neuronal, bien meilleure qualité) activé automatiquement si un modèle est présent |
-| Jobs en mémoire + fichiers dans le tmp OS | pas de base de données, pas de compte ; purge auto au bout de 3 h |
+| TTS à deux étages | Piper neuronal installé et auto-testé par le setup ; espeak-ng prend automatiquement le relais en cas d'échec |
+| Comptes et projets | SQLite local ou libSQL cloud, sessions HttpOnly et isolation stricte par propriétaire |
+| Jobs en mémoire + médias dans le tmp OS | chaque job appartient à un compte ; fichiers purgés au bout de 3 h |
 | File d'attente 1 rendu à la fois (+4 en attente) | les sandboxes/machines modestes restent stables |
 
 ## 3. Voix off
 
-### Niveau 1 — espeak-ng (par défaut)
+### Niveau 1 — Piper neuronal (recommandé)
 
-- Installé via le paquet pip `espeakng-loader` (bibliothèque + données embarquées).
-- Script : `scripts/tts_espeak.py` (sinthèse via ctypes, sans binaire externe).
-- Débit adaptatif : si la voix déborde de 30 % du budget de la scène, elle est
-  re-synthétisée plus vite (jusqu'à 220 mots/min).
-- Langues : `fr-fr` pour le français, voix `ar` pour l'arabe **et** la darija
-  (la darija étant transcrite en lettres latines, la lecture reste approximative).
+```bash
+npm run setup:voices
+```
 
-### Niveau 2 — Piper (recommandé, facultatif)
+Cette commande :
 
-1. Télécharger les modèles depuis le catalogue [rhasspy/piper-voices](https://huggingface.co/rhasspy/piper-voices) :
-   - français : `fr/fr_FR/tom/medium/fr_FR-tom-medium.onnx` + `.onnx.json`
-   - arabe : `ar/ar_JO/kareem/medium/ar_JO-kareem-medium.onnx` + `.onnx.json`
-2. Les déposer dans `assets/models/` (ignoré par Git).
-3. `pip install piper-tts` (le code l'appelle via `python3 -m piper`).
-4. Vérifier : `GET /api/voices` → `"engine": "piper"` pour les langues couvertes.
+1. crée `.venv/` pour ne pas modifier le Python système ;
+2. installe les versions verrouillées de `piper-tts` et `espeakng-loader` ;
+3. télécharge SIWIS medium pour le français et Kareem medium pour l'arabe ;
+4. vérifie taille et empreinte du modèle/configuration, avec trois tentatives en cas de téléchargement incomplet ;
+5. synthétise un vrai WAV avec chaque modèle avant de déclarer la voix prête.
 
-Aucun code à modifier : `lib/tts.mjs` choisit Piper dès que le fichier existe.
+`lib/tts.mjs` préfère SIWIS pour sa prosodie régulière et ne marque une voix Piper comme disponible que si le runtime, l'ONNX **et** son JSON adjacent sont lisibles.
+
+### Niveau 2 — espeak-ng (repli automatique)
+
+- Installé dans le même `.venv/` via `espeakng-loader`.
+- Script : `scripts/tts_espeak.py` (synthèse via ctypes, sans binaire système).
+- Si Piper échoue pendant la synthèse, la scène est automatiquement régénérée avec espeak au lieu d'annuler tout le MP4.
+- Langues : `fr-fr` pour le français, voix `ar` pour l'arabe et la darija.
+- La darija transcrite en lettres latines reste approximative.
+
+Pour une CI sans téléchargement de modèles :
+
+```bash
+npm run setup:voices -- --runtime-only
+```
+
+Vérifier avec `GET /api/voices` : la réponse expose `renderReady`, `neuralReady` et, pour chaque langue, `engine`, `quality`, `ready`, `recommended` ainsi que la commande de correction.
 
 ## 4. Musique procédurale
 
@@ -98,15 +111,13 @@ dans l'interface.
 - ❌ Musique simple (maquette procédurale).
 - ❌ Rendu typographique uniquement — pas de deepfake ni d'avatar parlant.
 - ⚠️ La vidéo « 30 s » peut durer 35-45 s : la timeline respecte la durée réelle de la voix.
-- ⚠️ Rendus purgés après 3 h (redémarrage du serveur = rendus perdus, les projets restent
-  dans la bibliothèque locale du navigateur).
+- ⚠️ Médias rendus purgés après 3 h (redémarrage du serveur = MP4 temporaires perdus) ; les projets restent dans la bibliothèque SQLite/libSQL privée du compte.
 
 ## 8. Pour aller plus loin (feuille de route)
 
-1. **LLM** pour des hooks vraiment originaux (`lib/generator.mjs` est isolé, interface inchangée).
+1. **Stockage objet S3/R2** pour conserver durablement les MP4 au-delà des 3 h temporaires.
 2. **Voix TTS darija** entraînée (Piper fine-tune sur corpus darija).
 3. **Images de fond générées** (SDXL/Stable Diffusion open weights) branchées sur les
-   `scene.prompt` existants, avec fallback sur le rendu typographique actuel.
-4. **Sous-titres mot à mot** (karaoke-style) : le plan de timeline par scène est déjà là,
-   il faut un alignement mot-à-mot (wav2vec2 forced alignment ou timestamps Piper).
-5. **File de rendu persistante** (SQLite) si usage multi-utilisateurs.
+   `scene.prompt` existants, avec fallback sur le rendu actuel.
+4. **Sous-titres mot à mot** (karaoke-style) via alignement forcé ou timestamps Piper.
+5. **File de rendu persistante** pour reprendre un encodage après redémarrage.
