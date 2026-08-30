@@ -2,12 +2,27 @@
 import { drawStudioFrame, fallbackTimeline } from '/lib/frame-draw.mjs';
 
 const form = document.querySelector('#studio-form');
+const autoForm = document.querySelector('#auto-studio-form');
+const autoPrompt = document.querySelector('#auto-prompt');
+const autoPromptCounter = document.querySelector('#auto-prompt-counter');
+const autoCreateBtn = document.querySelector('#auto-create-btn');
+const autoStatus = document.querySelector('#auto-status');
+const autoStatusIcon = document.querySelector('#auto-status-icon');
+const autoStatusTitle = document.querySelector('#auto-status-title');
+const autoStatusDetail = document.querySelector('#auto-status-detail');
+const autoInterpretation = document.querySelector('#auto-interpretation');
+const autoInterpretationChips = document.querySelector('#auto-interpretation-chips');
+const autoEffectSummary = document.querySelector('#auto-effect-summary');
+const autoResultActions = document.querySelector('#auto-result-actions');
+const autoPosterDownload = document.querySelector('#auto-poster-download');
+const autoVideoFollow = document.querySelector('#auto-video-follow');
 const generateBtn = document.querySelector('#generate-btn');
 const viralizeBtn = document.querySelector('#viralize-btn');
 const projectTitle = document.querySelector('#project-title');
 const scorePill = document.querySelector('#score-pill');
 const enginePill = document.querySelector('#engine-pill');
 const llmStatusLine = document.querySelector('#llm-status-line');
+const voiceStatusLine = document.querySelector('#voice-status-line');
 const phoneScene = document.querySelector('#phone-scene');
 const sceneEmoji = document.querySelector('#scene-emoji');
 const phoneTitle = document.querySelector('#phone-title');
@@ -36,7 +51,20 @@ const exportVideoBtn = document.querySelector('#export-video-btn');
 const saveProjectBtn = document.querySelector('#save-project-btn');
 const clearLibraryBtn = document.querySelector('#clear-library-btn');
 const libraryList = document.querySelector('#library-list');
+const authOverlay = document.querySelector('#auth-overlay');
+const authChecking = document.querySelector('#auth-checking');
+const authContent = document.querySelector('#auth-content');
+const authError = document.querySelector('#auth-error');
+const loginForm = document.querySelector('#login-form');
+const registerForm = document.querySelector('#register-form');
+const showLoginBtn = document.querySelector('#show-login-btn');
+const showRegisterBtn = document.querySelector('#show-register-btn');
+const accountControls = document.querySelector('#account-controls');
+const accountName = document.querySelector('#account-name');
+const logoutBtn = document.querySelector('#logout-btn');
 
+// Ancienne clé conservée uniquement pour migrer une bibliothèque locale vers
+// le stockage serveur privé au premier login.
 const STORAGE_KEY = 'yallah-viral-studio-library';
 
 // Coordonnées et pages officielles Yallah Services
@@ -63,6 +91,12 @@ let autoplayTimer = null;
 let toastTimer = null;
 let renderPollTimer = null;
 let activeRenderJobId = null;
+let automaticRenderJobId = null;
+let latestAutomaticPoster = null;
+let csrfToken = null;
+let currentUser = null;
+let libraryCache = [];
+let appStarted = false;
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -86,23 +120,159 @@ function collectFormInput() {
     duration: Number(data.get('duration')),
     style: data.get('style'),
     language: data.get('language'),
+    creativeDirection: (data.get('creativeDirection') || '').trim(),
     customVoice: (data.get('customVoice') || '').trim()
   };
 }
 
-async function postJson(url, payload) {
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: response.statusText }));
-    throw new Error(error.error || 'Erreur serveur');
+async function requestJson(url, { method = 'GET', payload, useCsrf = true } = {}) {
+  const headers = { Accept: 'application/json' };
+  if (payload !== undefined) headers['Content-Type'] = 'application/json';
+  if (useCsrf && csrfToken && !['GET', 'HEAD'].includes(method)) {
+    headers['X-YVS-CSRF'] = csrfToken;
   }
+  const response = await fetch(url, {
+    method,
+    headers,
+    credentials: 'same-origin',
+    body: payload === undefined ? undefined : JSON.stringify(payload)
+  });
+  const data = await response.json().catch(() => ({ error: response.statusText }));
+  if (!response.ok) {
+    const error = new Error(data.error || 'Erreur serveur');
+    error.code = data.code;
+    error.status = response.status;
+    if (response.status === 401 && !url.startsWith('/api/auth/')) showAuthGate();
+    throw error;
+  }
+  return data;
+}
 
-  return response.json();
+function postJson(url, payload) {
+  return requestJson(url, { method: 'POST', payload });
+}
+
+function setAuthMode(mode) {
+  const isLogin = mode === 'login';
+  loginForm.hidden = !isLogin;
+  registerForm.hidden = isLogin;
+  showLoginBtn.classList.toggle('active', isLogin);
+  showRegisterBtn.classList.toggle('active', !isLogin);
+  showLoginBtn.setAttribute('aria-selected', String(isLogin));
+  showRegisterBtn.setAttribute('aria-selected', String(!isLogin));
+  authError.hidden = true;
+}
+
+function showAuthGate({ checking = false, registrationEnabled = true } = {}) {
+  authOverlay.hidden = false;
+  authChecking.hidden = !checking;
+  authContent.hidden = checking;
+  document.body.classList.toggle('auth-pending', checking);
+  document.body.classList.toggle('auth-required', !checking);
+  showRegisterBtn.hidden = !registrationEnabled;
+  if (!registrationEnabled && !loginForm.hidden) setAuthMode('login');
+  accountControls.hidden = true;
+}
+
+async function migrateLegacyLibrary() {
+  let legacy = [];
+  try {
+    legacy = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  } catch {
+    legacy = [];
+  }
+  if (!Array.isArray(legacy) || !legacy.length) return;
+
+  let migrated = 0;
+  for (const project of legacy.slice(0, 24)) {
+    try {
+      await postJson('/api/projects', { project });
+      migrated += 1;
+    } catch {
+      break;
+    }
+  }
+  if (migrated === Math.min(legacy.length, 24)) {
+    localStorage.removeItem(STORAGE_KEY);
+    showToast(`${migrated} ancien${migrated > 1 ? 's' : ''} projet${migrated > 1 ? 's' : ''} migré${migrated > 1 ? 's' : ''} vers votre compte`);
+  }
+}
+
+async function activateAuthenticatedApp(session, { generate = false } = {}) {
+  currentUser = session.user || null;
+  csrfToken = session.csrfToken || null;
+  document.body.classList.remove('auth-pending', 'auth-required');
+  authOverlay.hidden = true;
+  accountControls.hidden = !currentUser;
+  accountName.textContent = currentUser?.displayName || currentUser?.email || '';
+  await migrateLegacyLibrary();
+  await loadLibrary();
+  refreshLlmStatusLine();
+  refreshVoiceStatusLine();
+  if (generate && (!appStarted || !currentProject)) await generateProject();
+  appStarted = true;
+}
+
+async function bootstrapAuth() {
+  showAuthGate({ checking: true });
+  try {
+    const session = await requestJson('/api/auth/session', { useCsrf: false });
+    if (session.authenticated) {
+      await activateAuthenticatedApp(session);
+      return;
+    }
+    showAuthGate({ registrationEnabled: session.registrationEnabled !== false });
+  } catch (error) {
+    showAuthGate({ registrationEnabled: false });
+    authError.textContent = error.message || 'Le serveur est indisponible.';
+    authError.hidden = false;
+  }
+}
+
+async function submitAuth(formElement, endpoint) {
+  const submit = formElement.querySelector('button[type="submit"]');
+  const previous = submit.textContent;
+  const values = Object.fromEntries(new FormData(formElement));
+  submit.disabled = true;
+  submit.textContent = 'Vérification…';
+  authError.hidden = true;
+  try {
+    const session = await requestJson(endpoint, {
+      method: 'POST',
+      payload: values,
+      useCsrf: false
+    });
+    formElement.reset();
+    await activateAuthenticatedApp(session);
+    showToast(endpoint.endsWith('/register') ? 'Compte créé avec succès' : 'Connexion réussie');
+  } catch (error) {
+    authError.textContent = error.message || 'Authentification impossible.';
+    authError.hidden = false;
+  } finally {
+    submit.disabled = false;
+    submit.textContent = previous;
+  }
+}
+
+async function logout() {
+  try {
+    await requestJson('/api/auth/logout', { method: 'POST' });
+  } catch {
+    // Même si le serveur a déjà expiré la session, verrouiller l'interface.
+  }
+  csrfToken = null;
+  currentUser = null;
+  currentProject = null;
+  libraryCache = [];
+  appStarted = false;
+  resetAiRenderPanel();
+  latestAutomaticPoster = null;
+  autoResultActions.hidden = true;
+  autoInterpretation.hidden = true;
+  setAutoStatus('ready', 'Prêt à créer', 'Décrivez votre idée puis choisissez le résultat souhaité.');
+  renderLibrary();
+  showAuthGate();
+  setAuthMode('login');
 }
 
 function setBusy(isBusy, label = 'Générer la vidéo') {
@@ -110,6 +280,139 @@ function setBusy(isBusy, label = 'Générer la vidéo') {
   viralizeBtn.disabled = isBusy;
   exportVideoBtn.disabled = isBusy;
   generateBtn.textContent = isBusy ? 'Création en cours…' : label;
+}
+
+function setAutoBusy(isBusy, label = 'Créer automatiquement') {
+  autoCreateBtn.disabled = isBusy;
+  autoCreateBtn.textContent = isBusy ? label : `✨ ${label}`;
+}
+
+function setAutoStatus(state, title, detail) {
+  const icons = { ready: '💡', working: '⏳', success: '✅', error: '⚠️' };
+  autoStatus.dataset.state = state;
+  autoStatusIcon.textContent = icons[state] || icons.ready;
+  autoStatusTitle.textContent = title;
+  autoStatusDetail.textContent = detail || '';
+}
+
+function syncAdvancedForm(input = {}) {
+  const setValue = (name, value) => {
+    if (value === undefined || value === null) return;
+    const control = form.elements.namedItem(name);
+    if (control) control.value = String(value);
+  };
+  for (const name of ['objective', 'city', 'service', 'duration', 'style', 'language', 'creativeDirection']) {
+    setValue(name, input[name]);
+  }
+  setValue('customVoice', '');
+}
+
+function renderAutomaticInterpretation(interpretation) {
+  const durationLabel = interpretation.requestedDuration
+    && Number(interpretation.requestedDuration) !== Number(interpretation.duration)
+    ? `${interpretation.duration} s (adapté depuis ${interpretation.requestedDuration} s)`
+    : `${interpretation.duration} s`;
+  const chips = [
+    `🎯 ${interpretation.serviceLabel}`,
+    `📍 ${interpretation.city}`,
+    `🗣️ ${interpretation.languageLabel}`,
+    `⏱️ ${durationLabel}`,
+    `🎨 ${interpretation.styleLabel}`,
+    `📦 ${interpretation.outputLabel}`
+  ];
+  if (interpretation.output === 'poster' || interpretation.output === 'both') {
+    chips.push(`📐 ${interpretation.posterFormatLabel}`);
+  }
+  autoInterpretationChips.replaceChildren(...chips.map(label => {
+    const chip = document.createElement('span');
+    chip.textContent = label;
+    return chip;
+  }));
+  const effects = Array.isArray(interpretation.effects) ? interpretation.effects.join(' · ') : '';
+  autoEffectSummary.textContent = `Effet et ambiance : ${effects || interpretation.creativeDirection}`;
+  autoInterpretation.hidden = false;
+}
+
+async function triggerAutomaticPosterDownload({ notify = false } = {}) {
+  if (!latestAutomaticPoster?.dataUrl) {
+    if (notify) showToast('Aucune affiche automatique disponible');
+    return false;
+  }
+  try {
+    const blob = await (await fetch(latestAutomaticPoster.dataUrl)).blob();
+    downloadBlob(blob, latestAutomaticPoster.filename || 'yallah-services-affiche.png');
+    if (notify) showToast('Téléchargement de l’affiche lancé');
+    return true;
+  } catch {
+    if (notify) showToast('Téléchargement impossible. Réessayez.');
+    return false;
+  }
+}
+
+async function createAutomatically(event) {
+  event?.preventDefault();
+  if (!autoForm.reportValidity()) return;
+
+  const data = new FormData(autoForm);
+  const prompt = String(data.get('prompt') || '').trim();
+  const output = String(data.get('autoOutput') || 'both');
+  let keepBusyForVideo = false;
+
+  latestAutomaticPoster = null;
+  autoResultActions.hidden = true;
+  autoPosterDownload.hidden = true;
+  autoVideoFollow.hidden = true;
+  autoInterpretation.hidden = true;
+  setAutoBusy(true, 'Analyse de votre idée…');
+  setAutoStatus('working', 'Je comprends votre demande…', 'Service, ville, langue, style, durée et effet sont détectés automatiquement.');
+
+  try {
+    const result = await postJson('/api/auto-create', { prompt, output });
+    renderProject(result.project);
+    syncAdvancedForm(result.project.input);
+    renderAutomaticInterpretation(result.interpretation);
+    libraryCache = [result.project, ...libraryCache.filter(item => item.id !== result.project.id)].slice(0, 24);
+    renderLibrary();
+
+    let posterDownloaded = false;
+    if (result.poster) {
+      latestAutomaticPoster = result.poster;
+      autoPosterDownload.hidden = false;
+      autoResultActions.hidden = false;
+      setAutoStatus('working', 'Affiche terminée…', 'Le téléchargement du PNG démarre. La vidéo peut continuer en parallèle.');
+      posterDownloaded = await triggerAutomaticPosterDownload();
+    }
+
+    if (result.videoJob) {
+      keepBusyForVideo = true;
+      autoVideoFollow.hidden = false;
+      autoResultActions.hidden = false;
+      trackAiRenderJob(result.videoJob, { automatic: true });
+      setAutoBusy(true, 'Vidéo en cours · 0 %');
+      setAutoStatus(
+        'working',
+        result.poster ? 'Affiche prête · vidéo en cours' : 'Vidéo en cours de création',
+        `${posterDownloaded ? 'Affiche téléchargée. ' : ''}La voix off, la musique, les sous-titres, l’animation et le MP4 sont produits automatiquement.`
+      );
+      document.querySelector('.results-layout')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      showToast(result.poster ? 'Affiche prête, vidéo en cours 🎬' : 'Création de la vidéo lancée 🎬');
+    } else {
+      const warning = Array.isArray(result.warnings) && result.warnings.length ? result.warnings[0] : '';
+      setAutoStatus(
+        warning ? 'error' : 'success',
+        warning ? 'Affiche prête · vidéo à relancer' : 'Création terminée',
+        warning || (posterDownloaded
+          ? 'Votre affiche a été téléchargée et le projet est sauvegardé dans votre bibliothèque.'
+          : 'Votre projet est prêt et sauvegardé dans votre bibliothèque privée.')
+      );
+      showToast(warning ? 'Affiche prête, vidéo momentanément indisponible' : 'Création automatique terminée ✨');
+    }
+  } catch (error) {
+    setAutoStatus('error', 'Création interrompue', error.message || 'Réessayez dans un instant.');
+    showToast(error.message || 'Création automatique impossible');
+  } finally {
+    if (!keepBusyForVideo) setAutoBusy(false);
+  }
 }
 
 async function generateProject(event) {
@@ -456,27 +759,41 @@ async function copyText(text) {
 }
 
 function getLibrary() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    return Array.isArray(saved) ? saved : [];
-  } catch {
-    return [];
-  }
+  return libraryCache;
 }
 
-function setLibrary(items) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(items.slice(0, 24)));
+async function loadLibrary() {
+  if (!currentUser) {
+    libraryCache = [];
+    renderLibrary();
+    return;
+  }
+  try {
+    const result = await requestJson('/api/projects?limit=24');
+    libraryCache = Array.isArray(result.projects) ? result.projects : [];
+  } catch (error) {
+    libraryCache = [];
+    showToast(error.message || 'Bibliothèque indisponible');
+  }
   renderLibrary();
 }
 
-function saveCurrentProject() {
+async function saveCurrentProject() {
   if (!currentProject) {
     showToast('Générez d’abord un projet');
     return;
   }
-  const library = getLibrary().filter(item => item.id !== currentProject.id);
-  setLibrary([{ ...currentProject, savedAt: new Date().toISOString() }, ...library]);
-  showToast('Projet sauvé dans la bibliothèque');
+  saveProjectBtn.disabled = true;
+  try {
+    const result = await postJson('/api/projects', { project: currentProject });
+    libraryCache = [result.project, ...libraryCache.filter(item => item.id !== currentProject.id)].slice(0, 24);
+    renderLibrary();
+    showToast('Projet sauvé dans votre bibliothèque privée');
+  } catch (error) {
+    showToast(error.message || 'Sauvegarde impossible');
+  } finally {
+    saveProjectBtn.disabled = false;
+  }
 }
 
 function renderLibrary() {
@@ -485,8 +802,8 @@ function renderLibrary() {
     libraryList.innerHTML = `
       <div class="empty-state card">
         <span>📁</span>
-        <h3>Aucune vidéo sauvegardée</h3>
-        <p>Générez un projet puis cliquez sur “Sauver”.</p>
+        <h3>Aucune création sauvegardée</h3>
+        <p>Votre prochaine création automatique apparaîtra ici.</p>
       </div>
     `;
     return;
@@ -508,6 +825,23 @@ function renderLibrary() {
 }
 
 function downloadBlob(blob, filename) {
+  // L'APK expose un pont minimal pour enregistrer les exports blob/dataURL
+  // (JSON, PNG et maquette WebM) dans le dossier Téléchargements Android.
+  if (typeof window.YallahAndroid?.saveBase64 === 'function') {
+    const reader = new FileReader();
+    reader.onerror = () => showToast('Export mobile impossible');
+    reader.onload = () => {
+      const encoded = String(reader.result || '').split(',')[1];
+      if (!encoded) {
+        showToast('Export mobile invalide');
+        return;
+      }
+      window.YallahAndroid.saveBase64(filename, blob.type || 'application/octet-stream', encoded);
+    };
+    reader.readAsDataURL(blob);
+    return;
+  }
+
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -531,9 +865,12 @@ function exportJson(project = currentProject) {
 // ---------- Rendu vidéo IA (pipeline open source serveur) ----------
 
 function resetAiRenderPanel() {
+  const stoppedAutomaticTracking = Boolean(automaticRenderJobId);
   clearInterval(renderPollTimer);
   renderPollTimer = null;
   activeRenderJobId = null;
+  automaticRenderJobId = null;
+  if (stoppedAutomaticTracking) setAutoBusy(false);
   aiRenderPanel.hidden = true;
   aiRenderResult.hidden = true;
   aiRenderVideo.removeAttribute('src');
@@ -548,6 +885,22 @@ function setAiRenderProgress(stage, progress, note) {
   aiRenderPercent.textContent = `${Math.round(progress * 100)}%`;
   aiRenderBarFill.style.width = `${Math.round(progress * 100)}%`;
   if (note) aiRenderNote.textContent = note;
+}
+
+function trackAiRenderJob(job, { automatic = false } = {}) {
+  clearInterval(renderPollTimer);
+  activeRenderJobId = job.id;
+  automaticRenderJobId = automatic ? job.id : null;
+  renderMp4Btn.disabled = true;
+  renderMp4Btn.textContent = '⏳ Rendu en cours…';
+  if (automatic) {
+    autoVideoFollow.href = '#ai-render-panel';
+    autoVideoFollow.removeAttribute('download');
+    autoVideoFollow.textContent = '🎬 Suivre la création de la vidéo';
+  }
+  setAiRenderProgress(job.stage, Math.max(job.progress, 0.01), 'Le rendu tourne côté serveur. Vous pouvez continuer à consulter le projet.');
+  renderPollTimer = setInterval(pollAiRenderStatus, 1500);
+  void pollAiRenderStatus();
 }
 
 // ---------- Affiches professionnelles (PNG) ----------
@@ -594,9 +947,7 @@ async function startAiRender() {
       mode: isPosterMode ? 'poster' : 'scenario',
       voiceText
     });
-    activeRenderJobId = job.id;
-    setAiRenderProgress(job.stage, job.progress, 'Le rendu tourne côté serveur. Vous pouvez continuer à consulter le projet.');
-    renderPollTimer = setInterval(pollAiRenderStatus, 1500);
+    trackAiRenderJob(job);
   } catch (error) {
     showToast(error.message || 'Impossible de lancer le rendu');
     renderMp4Btn.disabled = false;
@@ -605,12 +956,12 @@ async function startAiRender() {
 }
 
 async function pollAiRenderStatus() {
-  if (!activeRenderJobId) return;
+  const jobId = activeRenderJobId;
+  if (!jobId) return;
+  const isAutomatic = automaticRenderJobId === jobId;
   try {
-    const status = await fetch(`/api/video-status/${encodeURIComponent(activeRenderJobId)}`).then(r => {
-      if (!r.ok) throw new Error('Rendu introuvable');
-      return r.json();
-    });
+    const status = await requestJson(`/api/video-status/${encodeURIComponent(jobId)}`);
+    if (activeRenderJobId !== jobId) return;
 
     if (status.status === 'error') {
       clearInterval(renderPollTimer);
@@ -619,10 +970,22 @@ async function pollAiRenderStatus() {
       showToast(status.error || 'Le rendu a échoué');
       renderMp4Btn.disabled = false;
       renderMp4Btn.textContent = '🎬 Réessayer le rendu IA';
+      if (isAutomatic) {
+        automaticRenderJobId = null;
+        setAutoBusy(false);
+        setAutoStatus('error', 'La vidéo n’a pas pu être terminée', status.error || 'Le projet reste sauvegardé : vous pouvez relancer le rendu.');
+        autoVideoFollow.href = '#ai-render-panel';
+        autoVideoFollow.textContent = '🎬 Voir l’erreur et réessayer';
+      }
       return;
     }
 
-    setAiRenderProgress(status.stage, Math.max(status.progress, 0.02));
+    const progress = Math.max(status.progress, 0.02);
+    setAiRenderProgress(status.stage, progress);
+    if (isAutomatic) {
+      setAutoBusy(true, `Vidéo en cours · ${Math.round(progress * 100)} %`);
+      setAutoStatus('working', 'Votre vidéo se construit…', `${status.stage} · voix off, musique, animation et sous-titres inclus.`);
+    }
 
     if (status.status === 'done' && status.video) {
       clearInterval(renderPollTimer);
@@ -640,14 +1003,28 @@ async function pollAiRenderStatus() {
       setAiRenderProgress('Vidéo prête', 1, 'Vérifiez la voix et le rythme, puis téléchargez et publiez.');
       renderMp4Btn.disabled = false;
       renderMp4Btn.textContent = '🎬 Régénérer la vidéo IA';
+      if (isAutomatic) {
+        automaticRenderJobId = null;
+        setAutoBusy(false);
+        setAutoStatus('success', 'Création terminée 🎉', 'La vidéo MP4 avec voix off, musique, animation et sous-titres est prête à télécharger.');
+        autoVideoFollow.href = status.video.url;
+        autoVideoFollow.setAttribute('download', status.video.filename);
+        autoVideoFollow.textContent = '⬇️ Télécharger la vidéo MP4';
+      }
       showToast('Vidéo MP4 prête 🎉');
     }
   } catch (error) {
+    if (activeRenderJobId !== jobId) return;
     clearInterval(renderPollTimer);
     renderPollTimer = null;
     setAiRenderProgress('Rendu interrompu', 0, error.message);
     renderMp4Btn.disabled = false;
     renderMp4Btn.textContent = '🎬 Réessayer le rendu IA';
+    if (isAutomatic) {
+      automaticRenderJobId = null;
+      setAutoBusy(false);
+      setAutoStatus('error', 'Suivi de la vidéo interrompu', error.message || 'Reconnectez-vous puis relancez le rendu.');
+    }
   }
 }
 
@@ -847,6 +1224,20 @@ async function exportVideoMockup() {
   showToast('Export WebM lancé');
 }
 
+autoForm.addEventListener('submit', createAutomatically);
+autoPrompt.addEventListener('input', () => {
+  autoPromptCounter.textContent = `${autoPrompt.value.length} / 1500`;
+});
+autoForm.addEventListener('click', event => {
+  const example = event.target.closest('[data-auto-example]');
+  if (!example) return;
+  autoPrompt.value = example.dataset.autoExample || '';
+  autoPromptCounter.textContent = `${autoPrompt.value.length} / 1500`;
+  const outputChoice = autoForm.elements.namedItem('autoOutput');
+  if (outputChoice && example.dataset.autoOutput) outputChoice.value = example.dataset.autoOutput;
+  autoPrompt.focus();
+});
+autoPosterDownload.addEventListener('click', () => triggerAutomaticPosterDownload({ notify: true }));
 form.addEventListener('submit', generateProject);
 renderMp4Btn.addEventListener('click', startAiRender);
 posterStoryBtn.addEventListener('click', () => downloadPoster('story'));
@@ -854,8 +1245,9 @@ posterSquareBtn.addEventListener('click', () => downloadPoster('square'));
 
 // État du moteur texte (LLM local optionnel) affiché sous le formulaire.
 async function refreshLlmStatusLine() {
+  if (!currentUser) return;
   try {
-    const status = await fetch('/api/llm-status').then(r => r.json());
+    const status = await requestJson('/api/llm-status');
     llmStatusLine.textContent = status.available
       ? `✍️ Moteur texte : LLM local détecté — ${status.provider} (${status.model}). Hooks originaux à chaque génération.`
       : '✍️ Moteur texte : templates déterministes (hors-ligne). Pour des hooks originaux, branchez un LLM local — voir docs/llm-local.md.';
@@ -863,15 +1255,42 @@ async function refreshLlmStatusLine() {
     llmStatusLine.textContent = '✍️ Moteur texte : templates déterministes (hors-ligne).';
   }
 }
-refreshLlmStatusLine();
+
+async function refreshVoiceStatusLine() {
+  try {
+    const { voices = [] } = await requestJson('/api/voices');
+    const unavailable = voices.filter(voice => !voice.ready);
+    const fallback = voices.filter(voice => voice.engine !== 'piper' && voice.ready);
+    voiceStatusLine.classList.toggle('warning', unavailable.length > 0 || fallback.length > 0);
+    if (unavailable.length) {
+      voiceStatusLine.textContent = '❌ Voix serveur indisponible. Exécutez npm run setup:voices avant de lancer un rendu.';
+    } else if (fallback.length) {
+      voiceStatusLine.textContent = `⚠️ Voix de secours espeak active (${fallback.map(voice => voice.language).join(', ')}). Pour une voix neuronale, exécutez npm run setup:voices.`;
+    } else {
+      voiceStatusLine.textContent = '🗣️ Voix neuronales Piper prêtes et vérifiées pour le français, la darija et l’arabe.';
+    }
+  } catch {
+    voiceStatusLine.textContent = 'Voix : diagnostic indisponible.';
+    voiceStatusLine.classList.add('warning');
+  }
+}
 viralizeBtn.addEventListener('click', viralizeProject);
 playVoiceBtn.addEventListener('click', playVoiceOver);
 exportJsonBtn.addEventListener('click', () => exportJson());
 exportVideoBtn.addEventListener('click', exportVideoMockup);
 saveProjectBtn.addEventListener('click', saveCurrentProject);
-clearLibraryBtn.addEventListener('click', () => {
-  setLibrary([]);
-  showToast('Bibliothèque vidée');
+clearLibraryBtn.addEventListener('click', async () => {
+  clearLibraryBtn.disabled = true;
+  try {
+    await requestJson('/api/projects', { method: 'DELETE' });
+    libraryCache = [];
+    renderLibrary();
+    showToast('Votre bibliothèque a été vidée');
+  } catch (error) {
+    showToast(error.message || 'Suppression impossible');
+  } finally {
+    clearLibraryBtn.disabled = false;
+  }
 });
 
 scenePager.addEventListener('click', event => {
@@ -893,7 +1312,7 @@ tabContent.addEventListener('click', event => {
   copyText(button.dataset.copy);
 });
 
-libraryList.addEventListener('click', event => {
+libraryList.addEventListener('click', async event => {
   const loadButton = event.target.closest('[data-load]');
   const deleteButton = event.target.closest('[data-delete]');
   const exportButton = event.target.closest('[data-export]');
@@ -905,8 +1324,16 @@ libraryList.addEventListener('click', event => {
   }
 
   if (deleteButton) {
-    setLibrary(library.filter(item => item.id !== deleteButton.dataset.delete));
-    showToast('Projet supprimé');
+    deleteButton.disabled = true;
+    try {
+      await requestJson(`/api/projects/${encodeURIComponent(deleteButton.dataset.delete)}`, { method: 'DELETE' });
+      libraryCache = library.filter(item => item.id !== deleteButton.dataset.delete);
+      renderLibrary();
+      showToast('Projet supprimé');
+    } catch (error) {
+      deleteButton.disabled = false;
+      showToast(error.message || 'Suppression impossible');
+    }
   }
 
   if (exportButton) {
@@ -915,5 +1342,17 @@ libraryList.addEventListener('click', event => {
   }
 });
 
+showLoginBtn.addEventListener('click', () => setAuthMode('login'));
+showRegisterBtn.addEventListener('click', () => setAuthMode('register'));
+loginForm.addEventListener('submit', event => {
+  event.preventDefault();
+  submitAuth(loginForm, '/api/auth/login');
+});
+registerForm.addEventListener('submit', event => {
+  event.preventDefault();
+  submitAuth(registerForm, '/api/auth/register');
+});
+logoutBtn.addEventListener('click', logout);
+
 renderLibrary();
-generateProject();
+bootstrapAuth();

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="yallah_dark">#07121A</color>
+    <color name="yallah_surface">#0C1B26</color>
+    <color name="yallah_green">#20C997</color>
+    <color name="yallah_gold">#FFBE0B</color>
+    <color name="yallah_white">#FFFFFF</color>
+</resources>

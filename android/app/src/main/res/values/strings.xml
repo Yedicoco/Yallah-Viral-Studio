@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="configure_title">Connecter Yallah Viral Studio</string>
+    <string name="configure_intro">L’application Android se connecte au serveur sécurisé qui génère les affiches, les voix et les vidéos MP4.</string>
+    <string name="server_url_hint">https://studio.votre-domaine.ma</string>
+    <string name="connect">Ouvrir le studio</string>
+    <string name="change_server">Changer de serveur</string>
+    <string name="retry">Réessayer</string>
+    <string name="download_started">Téléchargement démarré</string>
+</resources>

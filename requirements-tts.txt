@@ -1,0 +1,10 @@
+# Fully pinned, isolated runtime for reproducible voice rendering.
+# Piper is GPL-3.0-or-later; voice datasets keep their own model-card licences.
+piper-tts==1.7.0
+espeakng-loader==0.2.4
+onnxruntime==1.29.0
+numpy==2.4.6
+protobuf==7.36.0
+flatbuffers==25.12.19
+packaging==26.3
+pathvalidate==3.3.1
