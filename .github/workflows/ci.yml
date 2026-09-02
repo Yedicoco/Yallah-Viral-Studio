@@ -33,14 +33,22 @@ jobs:
       - name: Install Node dependencies
         run: npm ci
 
-      - name: Install deterministic TTS fallback
-        run: npm run setup:voices -- --runtime-only
+      - name: Install deterministic TTS runtime (espeak-ng fallback)
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install --disable-pip-version-check -r requirements-tts-espeak.txt
 
-      - name: Syntax and automated tests
+      - name: Run backend and TTS runtime checks
         run: npm run verify
+        env:
+          YVS_PYTHON: ${{ github.workspace }}/.venv/bin/python
+          YVS_TTS_ENGINE: espeak
 
       - name: End-to-end MP4 smoke test
         run: npm run test:e2e
+        env:
+          YVS_PYTHON: ${{ github.workspace }}/.venv/bin/python
+          YVS_TTS_ENGINE: espeak
 
       - name: Upload smoke artifacts
         if: always()

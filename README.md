@@ -94,6 +94,8 @@ YVS_ANDROID_SERVER_URL='https://studio.example.ma' npm run android:build
 
 Le workflow **Android APK** compile aussi le projet sur GitHub Actions et publie l’APK debug comme artefact. Prérequis, installation, sécurité et signature release : [`docs/android-apk.md`](docs/android-apk.md).
 
+**Déploiement public en un clic** : le dépôt contient un paquet prêt (`Dockerfile`, `render.yaml`, `requirements-tts-espeak.txt`) pour publier le serveur sur **Render** (ou Railway/Fly.io) et obtenir une URL HTTPS durable. Pour que l’APK **démarre sans écran de saisie**, déployez ce serveur puis réglez la variable de dépôt GitHub `YVS_ANDROID_SERVER_URL`. Guide pas à pas (sans jargon) : [`docs/deploy-public.md`](docs/deploy-public.md).
+
 ## Tests et smoke test
 
 ```bash

@@ -679,5 +679,39 @@ const isMainModule = process.argv[1]
   && import.meta.url === pathToFileURL(resolve(process.argv[1])).href;
 
 if (isMainModule) {
-  await startStudioServer();
+  const server = await startStudioServer();
+
+  // Arrêt propre : ferme le serveur HTTP puis la base de données (SQLite pou
+  // libSQL) avant de quitter. Important en production : les plateformes
+  // (Docker, Render, Railway) envoient SIGTERM avant d'éteindre le conteneur ;
+  // sans cette fermeture, le fichier SQLite risquerait d'être laissé dans un
+  // état à récupérer. SIGINT couvre le Ctrl-C manuel.
+  let shuttingDown = false;
+  const shutdown = async (signal) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    console.log(`\n[shutdown] ${signal} reçu — fermeture en cours…`);
+    try {
+      await new Promise((resolveClose, rejectClose) => {
+        const timer = setTimeout(() => rejectClose(new Error('Fermeture HTTP expirée')), 10_000);
+        server.close(async (closeError) => {
+          clearTimeout(timer);
+          if (closeError) return rejectClose(closeError);
+          try {
+            await server.closeResources?.();
+            resolveClose();
+          } catch (storeError) {
+            rejectClose(storeError);
+          }
+        });
+      });
+      console.log('[shutdown] serveur et stockage fermés proprement.');
+      process.exit(0);
+    } catch (error) {
+      console.error('[shutdown] erreur pendant la fermeture :', error.message);
+      process.exit(1);
+    }
+  };
+  process.once('SIGTERM', () => shutdown('SIGTERM'));
+  process.once('SIGINT', () => shutdown('SIGINT'));
 }
