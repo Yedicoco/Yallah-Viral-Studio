@@ -1,0 +1,42 @@
+# Render Blueprint — déploiement « un clic » du serveur Yallah Viral Studio.
+#
+# 1. Poussez ce dépôt sur GitHub (déjà fait pour Yedicoco/Yallah-Viral-Studio).
+# 2. Sur https://render.com → New → Blueprint → sélectionnez ce dépôt → Apply.
+# 3. Render construit l'image (voir Dockerfile) et publie une URL HTTPS
+#    publique du type https://yallah-studio.onrender.com.
+#
+# Ensuite, pour que l'APK démarre sans saisie d'adresse : réglez la variable
+# de dépôt GitHub YVS_ANDROID_SERVER_URL sur cette URL et relancez le workflow
+# « Android APK » (voir docs/deploy-public.md).
+
+services:
+  - type: web
+    name: yallah-viral-studio
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: HOST
+        value: 0.0.0.0
+      - key: PORT
+        value: 4173
+      - key: YVS_AUTH_REQUIRED
+        value: "true"
+      - key: YVS_ALLOW_REGISTRATION
+        value: "true"
+      # Secret aléatoire généré à la création du service (sessions HttpOnly).
+      - key: YVS_SESSION_SECRET
+        generateValue: true
+      - key: YVS_TTS_ENGINE
+        value: espeak
+      - key: YVS_PYTHON
+        value: /app/.venv/bin/python
+      - key: YVS_MODELS_DIR
+        value: /app/assets/models
+      # Stockage local SQLite. Sur le plan gratuit, les données ne survivent
+      # pas aux redéploiements : pour un stockage durable, pointez cette
+      # variable vers une base libSQL/Turso (voir docs/deploy-public.md).
+      - key: YVS_DATABASE_URL
+        value: file:data/yallah-viral-studio.db

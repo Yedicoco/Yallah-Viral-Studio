@@ -1,0 +1,4 @@
+# Runtime TTS de secours minimal pour un déploiement léger (voix espeak-ng).
+# Pour la voix neuronale Piper (recommandée pour une meilleure prosodie),
+# utiliser requirements-tts.txt + `npm run setup:voices`.
+espeakng-loader==0.2.4

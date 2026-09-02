@@ -59,6 +59,12 @@ Ne placez aucun jeton ni secret dans cette URL. Elle est publique dans l’APK. 
 
 Dans GitHub Actions, la même valeur peut être définie dans la variable de dépôt `YVS_ANDROID_SERVER_URL` ou saisie lors du lancement manuel du workflow **Android APK**.
 
+> **Vous débutez et ne voulez pas manipuler de serveur ?** Le dépôt fournit un
+> déploiement « un clic » (`render.yaml` + `Dockerfile`) pour publier ce serveur
+> sur **Render** et obtenir une URL HTTPS durable, puis graver cette URL dans
+> l’APK via la variable `YVS_ANDROID_SERVER_URL`. Guide simplifié pas à pas :
+> [`docs/deploy-public.md`](docs/deploy-public.md).
+
 ## Sécurité du client
 
 - Identifiant Android : `ma.yallahservices.viralstudio` (`.debug` pour l’APK de test).
