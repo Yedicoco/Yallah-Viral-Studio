@@ -20,8 +20,9 @@ services:
     envVars:
       - key: HOST
         value: 0.0.0.0
-      - key: PORT
-        value: 4173
+      # PORT n'est PAS défini ici : Render l'injecte automatiquement (10000 par
+      # défaut) et route le trafic HTTPS vers cette valeur. Le serveur écoute
+      # sur process.env.PORT (fallback Dockerfile 4173).
       - key: YVS_AUTH_REQUIRED
         value: "true"
       - key: YVS_ALLOW_REGISTRATION

@@ -40,13 +40,13 @@ RUN python3 -m venv .venv \
          -r requirements-tts-espeak.txt
 
 # Utilisateur non-root : limite la surface d'attaque et respecte les bonnes
-# pratiques de confinement. Le répertoire de données SQLite (/app/data) est créé
-# et rendu inscriptible ; les rendus temporaires vont dans /tmp (0xxx pour tous).
-RUN groupadd -r yallah && useradd -r -g yallah -m /home/yallah yallah \
-    && mkdir -p /app/data \
-    && chown -R yallah:yallah /app \
+# pratiques de confinement. L'image Node officielle fournit déjà le compte
+# « node » ; le répertoire de données SQLite (/app/data) est créé et rendu
+# inscriptible ; les rendus temporaires vont dans /tmp (1777 pour tous).
+RUN mkdir -p /app/data \
+    && chown -R node:node /app \
     && chmod 1777 /tmp
-USER yallah
+USER node
 
 ENV HOST=0.0.0.0
 ENV PORT=4173
