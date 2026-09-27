@@ -223,7 +223,12 @@ async function serveStatic(request, response) {
   const url = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
   let requestedPath;
   try {
-    requestedPath = url.pathname === '/' ? '/index.html' : decodeURIComponent(url.pathname);
+    const publicPages = {
+      '/': '/index.html',
+      '/privacy-policy': '/privacy-policy.html',
+      '/terms-of-service': '/terms-of-service.html'
+    };
+    requestedPath = publicPages[url.pathname] || decodeURIComponent(url.pathname);
   } catch {
     throw httpError('Chemin invalide.', 400, 'INVALID_PATH');
   }
@@ -237,7 +242,7 @@ async function serveStatic(request, response) {
 
   // Le serveur vit à la racine du dépôt : ne jamais exposer le code backend,
   // les bases SQLite, les fichiers .env, les tests ou les manifests npm.
-  const isPublicAsset = safePath === 'index.html'
+  const isPublicAsset = ['index.html', 'privacy-policy.html', 'terms-of-service.html'].includes(safePath)
     || safePath === join('lib', 'frame-draw.mjs')
     || safePath.startsWith(`src${sep}`)
     || safePath.startsWith(`assets${sep}`);
